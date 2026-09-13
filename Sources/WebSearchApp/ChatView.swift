@@ -186,17 +186,9 @@ private struct TurnView: View {
             }
             .padding(.top, 4)
         } else if let summary = turn.summary {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(summary)
-                    .font(AppFont.body)
-                // Redo, not just a first attempt — a bad summary (e.g. one saved before a since-
-                // fixed generation bug) otherwise has no way to be replaced.
-                Button("Regenerate") {
-                    Task { await model.summarize(turnID: turn.id) }
-                }
-                .font(AppFont.caption)
-            }
-            .padding(.top, 4)
+            Text(summary)
+                .font(AppFont.body)
+                .padding(.top, 4)
         } else {
             Button("Summarize") {
                 Task { await model.summarize(turnID: turn.id) }
