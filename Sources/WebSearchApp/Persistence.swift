@@ -60,7 +60,7 @@ enum HistoryStore {
     private static var url: URL { AppPaths.supportDirectory.appendingPathComponent("history.json") }
 }
 
-// MARK: - App settings (non-secret) — selected model, Tavily server shape
+// MARK: - App settings (non-secret) — Tavily server shape
 
 struct PersistedTavilyServer: Codable {
     var url: String
@@ -70,7 +70,6 @@ struct PersistedTavilyServer: Codable {
 }
 
 struct AppSettings: Codable {
-    var selectedModel: String = "system"   // ModelID.rawValue
     var tavilyServer: PersistedTavilyServer?
 }
 
@@ -86,6 +85,22 @@ enum SettingsStore {
     }
 
     private static var url: URL { AppPaths.supportDirectory.appendingPathComponent("settings.json") }
+}
+
+// MARK: - Model-layer state (routes/residency/installed records) — the SDK's own snapshot shape
+
+enum ModelStateStore {
+    static func load() -> LocalLMLabState? {
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return try? JSONDecoder().decode(LocalLMLabState.self, from: data)
+    }
+
+    static func save(_ state: LocalLMLabState) {
+        guard let data = try? JSONEncoder().encode(state) else { return }
+        try? data.write(to: url, options: .atomic)
+    }
+
+    private static var url: URL { AppPaths.supportDirectory.appendingPathComponent("modelState.json") }
 }
 
 enum AppPaths {

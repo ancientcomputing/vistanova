@@ -78,9 +78,16 @@ final class AppModel {
 
     init() {
         lab = LocalLMLab(configuration: .init(providers: [SystemModelProvider(), mlxProvider]))
+        // The SDK's own persistence for exactly this (route map + residency + installed
+        // records) — restore(from:) before reading back the "chat" route, rather than this app
+        // tracking selectedModel as its own separate string.
+        if let modelState = ModelStateStore.load() {
+            lab.restore(from: modelState)
+        }
+        selectedModel = lab.models.modelID(for: "chat") ?? .system
+
         let settings = SettingsStore.load()
         threads = HistoryStore.load()
-        selectedModel = ModelID(settings.selectedModel) ?? .system
 
         if let tavily = settings.tavilyServer {
             tavilyConfigured = true
@@ -429,8 +436,7 @@ final class AppModel {
     // MARK: - Persistence
 
     func persistSelectedModel() {
-        var settings = SettingsStore.load()
-        settings.selectedModel = selectedModel.rawValue
-        SettingsStore.save(settings)
+        lab.models.route("chat", to: selectedModel)
+        ModelStateStore.save(lab.snapshot())
     }
 }
