@@ -151,10 +151,12 @@ final class AppModel {
     func send() async {
         let query = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty, !isSearching, tavilyConnected else { return }
-        input = ""
+        // Left visible (but not editable — see ChatView's composer) until the turn finishes,
+        // success or failure, rather than cleared immediately: the query stays legible next to
+        // the spinner instead of vanishing while the user waits.
         lastError = nil
         isSearching = true
-        defer { isSearching = false }
+        defer { isSearching = false; input = "" }
 
         var continuesActiveThread = false
         if activeSession != nil {

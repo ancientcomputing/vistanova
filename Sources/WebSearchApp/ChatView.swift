@@ -84,7 +84,7 @@ struct ChatView: View {
                     .textFieldStyle(.roundedBorder)
                     .lineLimit(1...4)
                     .onSubmit { Task { await model.send() } }
-                    .disabled(!model.tavilyConnected)
+                    .disabled(!model.tavilyConnected || model.isSearching)
                 if model.isSearching {
                     ProgressView().controlSize(.small)
                 } else {
