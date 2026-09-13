@@ -8,8 +8,10 @@ Two targets, sharing the same idea:
 
 - **`WebSearch`** — a `swift run` CLI. Apple's on-device model only, one search, no history.
 - **`WebSearchApp`** — a SwiftUI `.app`. Chat-style transcript of past searches (scrolls up,
-  keeps the last 100), Tavily's key in the Keychain, and a runtime model picker (on-device or
-  any hosted provider — GPT, Claude, OpenRouter — via `Components`' settings panel).
+  keeps the last 100), Tavily's key in the Keychain, and a runtime model picker — Apple on-device
+  or any downloaded MLX open-weight model, both fully local. No cloud model providers by design:
+  the goal is on-device inference with online *search* (Tavily today; a user-configurable choice
+  of search backend — Brave, Exa, etc. — is planned but not built yet).
 
 ## WebSearchApp (the SwiftUI app)
 
@@ -26,9 +28,9 @@ First launch shows a blocking "Connect Tavily" sheet — get a key at
 persists the server's shape (URL, which tool is enabled) so it can reconnect next launch without
 asking again.
 
-Pick a model from the toolbar picker — Apple on-device by default; add a hosted provider (API
-key, also Keychain-backed) via the gear icon → Settings, same `AIModelsSettingsView` panel as the
-SDK's `model-switch` example.
+Pick a model from the toolbar picker — Apple on-device by default; download an open-weight MLX
+model (with a live progress bar) via the gear icon → Settings, same `ModelPickerView` panel the
+SDK's `repo-qa-local`/`workspace-buddy-local` examples are built around.
 
 **Conversational search.** Type a topic, get 5 links. Keep typing in the same box to narrow the
 same search — "just her music career," "more recent" — and the model sees the earlier turns of
@@ -69,18 +71,26 @@ the SDK's own [`repo-qa`](locallm/examples/repo-qa) example.
 - Output is structured (`@Generable SearchResults`), not prose — the result is always exactly 5
   `(title, url)` pairs, never something the caller has to re-parse for links.
 - `WebSearchApp` drives everything through `LocalLMLab` (`LocalLMLabSDKCore` +
-  `LocalLMLabSDKComponents` + `LocalLMLabSDKRemote`): `lab.mcp` is the same `MCPServerManager` the
-  CLI uses directly, `lab.models` handles routing between on-device/hosted models, and
-  `lab.makeSession` assembles a session's tools from whichever MCP tools are enabled — no manual
-  `MCPTool` wiring needed once `tavily_search` is enabled.
+  `LocalLMLabSDKComponents` + `LocalLMLabSDKInference`): `lab.mcp` is the same `MCPServerManager`
+  the CLI uses directly, `lab.models` handles routing between `SystemModelProvider` (Apple
+  on-device) and `MLXModelProvider` (downloaded open-weight models), and `lab.makeSession`
+  assembles a session's tools from whichever MCP tools are enabled — no manual `MCPTool` wiring
+  needed once `tavily_search` is enabled.
 - A topic thread owns one real `LanguageModelSession`. Refining a search reuses it (the model
   sees prior turns); switching topics discards it for a fresh one. The classification call that
   tells them apart runs on its own disposable session so it never pollutes the thread's own
   transcript.
+- Apple's on-device guardrail can intercept a turn about a real person/sensitive topic even after
+  producing a fully valid result — `AppModel.search` recovers the embedded JSON when there's
+  something to recover (strict decode, then a lenient regex fallback for cases where the decline
+  path drops quote characters), retries once on a bare text decline, and otherwise surfaces the
+  error as-is. A downloaded MLX model in the picker sidesteps this guardrail entirely, since it's
+  Apple's own safety layer, not something in this app's prompt.
 
 ## Repo layout
 
-- `Package.swift` — CLI target (`WebSearch`) + the `LocalLMLabSDKRemote` binary the app needs.
+- `Package.swift` — CLI target (`WebSearch`) + the `LocalLMLabSDKInference` (MLX) binary the app
+  needs.
 - `Sources/WebSearch/` — the CLI.
 - `Sources/WebSearchApp/`, `project.yml`, `WebSearchApp.xcodeproj/`, `xcodeproj/` — the SwiftUI
   app (generated via `xcodegen`; regenerate after editing `project.yml`, not the `.xcodeproj`

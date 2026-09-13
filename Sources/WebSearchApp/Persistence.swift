@@ -1,10 +1,9 @@
-// Persistence — everything the app remembers across launches, split by sensitivity:
-//  - Secrets (remote-provider API keys) go through KeychainStore, never through JSON on disk.
-//  - The Tavily MCP server's own PAT is persisted automatically by MCPServerManager/MCPPATStore
-//    (see locallm/docs/mcp-tavily.md) — we only persist its non-secret shape (URL, tool list) so
-//    `lab.mcp.restore(from:)` + `reconnect(id)` can bring the live connection back without the
-//    user re-entering the key.
-//  - Search history (topic threads) is plain JSON — nothing secret in a title or a URL.
+// Persistence — everything the app remembers across launches. Nothing here is a secret: the
+// Tavily MCP server's own PAT is persisted automatically by MCPServerManager/MCPPATStore (see
+// locallm/docs/mcp-tavily.md) — we only persist its non-secret shape (URL, tool list) so
+// `lab.mcp.restore(from:)` + `reconnect(id)` can bring the live connection back without the user
+// re-entering the key. Every model is local (Apple on-device or a downloaded MLX model), so
+// there's no other credential to store. Search history (topic threads) is plain JSON.
 
 import Foundation
 import LocalLMLabSDKCore
@@ -50,18 +49,7 @@ enum HistoryStore {
     private static var url: URL { AppPaths.supportDirectory.appendingPathComponent("history.json") }
 }
 
-// MARK: - App settings (non-secret) — selected model, remote-provider shapes, Tavily server shape
-
-struct PersistedProviderDraft: Codable {
-    var scheme: String
-    var displayName: String
-    var kind: String            // RemoteProviderKind.rawValue
-    var baseURL: String
-    var models: [String]
-    var webSearchSupported: Bool
-    var webSearchEnabled: Bool
-    var maxSearches: Int
-}
+// MARK: - App settings (non-secret) — selected model, Tavily server shape
 
 struct PersistedTavilyServer: Codable {
     var url: String
@@ -72,7 +60,6 @@ struct PersistedTavilyServer: Codable {
 
 struct AppSettings: Codable {
     var selectedModel: String = "system"   // ModelID.rawValue
-    var providers: [PersistedProviderDraft] = []
     var tavilyServer: PersistedTavilyServer?
 }
 
@@ -96,47 +83,5 @@ enum AppPaths {
         let dir = base.appendingPathComponent(Bundle.main.bundleIdentifier ?? "WebSearchApp", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
-    }
-}
-
-// MARK: - Keychain (remote-provider API keys only — Tavily's PAT is handled by the SDK itself)
-
-enum KeychainStore {
-    private static var service: String { (Bundle.main.bundleIdentifier ?? "WebSearchApp") + ".remoteProviderKey" }
-
-    static func set(_ value: String, account: String) {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-        ]
-        SecItemDelete(query as CFDictionary)
-        var attributes = query
-        attributes[kSecValueData as String] = Data(value.utf8)
-        attributes[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-        SecItemAdd(attributes as CFDictionary, nil)
-    }
-
-    static func get(account: String) -> String? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-        ]
-        var result: AnyObject?
-        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
-              let data = result as? Data else { return nil }
-        return String(data: data, encoding: .utf8)
-    }
-
-    static func delete(account: String) {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-        ]
-        SecItemDelete(query as CFDictionary)
     }
 }

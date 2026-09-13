@@ -28,12 +28,19 @@ private struct SettingsScreen: View {
         VStack(alignment: .leading, spacing: 0) {
             tavilySection
             Divider()
-            AIModelsSettingsView(
+            // Apple on-device + downloadable MLX models (with a live progress bar and an "Add
+            // from Hugging Face" field) — no cloud providers. show27OnlyModels is moot here since
+            // the app already requires macOS 27.
+            ModelPickerView(
                 registry: model.lab.models,
-                providers: $model.providers,
-                onSave: { model.applyDraft($0) },
-                onRemove: { model.removeDraft($0) },
-                onTest: { await model.testDraft($0) })
+                selection: Binding(
+                    get: { model.selectedModel },
+                    set: { newValue in
+                        guard let newValue, newValue != model.selectedModel else { return }
+                        model.selectedModel = newValue
+                        model.persistSelectedModel()
+                        model.endActiveThread()
+                    }))
         }
         .sheet(isPresented: $showingTavilyReplace) {
             TavilySetupView(model: model)

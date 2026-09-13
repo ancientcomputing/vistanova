@@ -1,6 +1,8 @@
 // AppModel — the app's one piece of real logic: connect Tavily over MCP, let the user pick any
-// registered model (on-device or hosted, via LocalLMLab/Components/Remote), and run searches as
-// topic threads that stay conversational until the model itself decides the user has moved on.
+// registered LOCAL model (Apple on-device, or a downloaded MLX open-weight model — no cloud
+// providers; a search backend other than Tavily, e.g. Brave/Exa, is a config option for later,
+// not built yet), and run searches as topic threads that stay conversational until the model
+// itself decides the user has moved on.
 //
 // Conversational fine-tuning, in one paragraph: a topic thread owns one real `LanguageModelSession`
 // (via `lab.makeSession`, tools = the enabled MCP tools = tavily_search). Every `send()` while
@@ -15,7 +17,7 @@ import Observation
 import FoundationModels
 import LocalLMLabSDKCore
 import LocalLMLabSDKComponents
-import LocalLMLabSDKRemote
+import LocalLMLabSDKInference
 
 @Generable
 struct WebPage {
@@ -42,10 +44,6 @@ struct TopicDecision {
 @Observable
 final class AppModel {
     let lab: LocalLMLab
-
-    var providers: [RemoteProviderDraft] = [] {
-        didSet { persistProviders(previousSchemes: Set(oldValue.map(\.scheme))) }
-    }
     var selectedModel: ModelID = .system
 
     var threads: [TopicThread] = []
@@ -67,27 +65,10 @@ final class AppModel {
     private var activeThreadID: UUID?
 
     init() {
-        lab = LocalLMLab(configuration: .init(providers: [SystemModelProvider()]))
+        lab = LocalLMLab(configuration: .init(providers: [SystemModelProvider(), MLXModelProvider()]))
         let settings = SettingsStore.load()
         threads = HistoryStore.load()
         selectedModel = ModelID(settings.selectedModel) ?? .system
-
-        providers = settings.providers.compactMap { persisted in
-            guard let kind = RemoteProviderKind(rawValue: persisted.kind) else { return nil }
-            var draft = RemoteProviderDraft(
-                scheme: persisted.scheme, displayName: persisted.displayName, kind: kind,
-                baseURL: persisted.baseURL, apiKey: KeychainStore.get(account: persisted.scheme) ?? "",
-                models: persisted.models,
-                webSearchSupported: persisted.webSearchSupported,
-                webSearchEnabled: persisted.webSearchEnabled,
-                maxSearches: persisted.maxSearches)
-            if let config = draft.makeConfig() {
-                lab.models.replace(RemoteModelProvider(config))
-                draft.configured = true
-                draft.statusText = "\(config.models.count) model(s) available."
-            }
-            return draft
-        }
 
         if let tavily = settings.tavilyServer {
             tavilyConfigured = true
@@ -148,52 +129,6 @@ final class AppModel {
         for descriptor in state.tools {
             lab.mcp.setToolEnabled(server: state.id, tool: descriptor.name, enabled: descriptor.name == "tavily_search")
         }
-    }
-
-    // MARK: - Provider config (Components' AIModelsSettingsView calls these)
-
-    func applyDraft(_ draft: RemoteProviderDraft) {
-        guard let idx = providers.firstIndex(where: { $0.scheme == draft.scheme }) else { return }
-        var updated = draft
-        if let config = draft.makeConfig() {
-            lab.models.replace(RemoteModelProvider(config))
-            updated.configured = true
-            updated.statusText = "\(config.models.count) model(s) available."
-        } else {
-            lab.models.removeProvider(scheme: draft.scheme)
-            updated.configured = false
-            updated.statusText = "Enter an API key to enable."
-        }
-        providers[idx] = updated
-    }
-
-    func removeDraft(_ draft: RemoteProviderDraft) {
-        lab.models.removeProvider(scheme: draft.scheme)
-        if selectedModel.scheme == draft.scheme { selectedModel = .system }
-    }
-
-    func testDraft(_ draft: RemoteProviderDraft) async -> ProviderTestOutcome {
-        guard let config = draft.makeConfig(), !config.models.isEmpty else {
-            return .unableToRun("Add a model id and an API key first.")
-        }
-        let provider = RemoteModelProvider(config)
-        var results: [ProviderTestOutcome.ModelResult] = []
-        for model in config.models {
-            guard let modelID = ModelID(scheme: config.scheme, rest: model.id) else {
-                results.append(.init(modelId: model.id, ok: false, detail: "isn't a valid model id."))
-                continue
-            }
-            let availability = await provider.probe(for: modelID)
-            let detail: String
-            switch availability {
-            case .available: detail = "Available."
-            case .needsCredential: detail = "The API key was rejected."
-            case .unavailable(_, let d): detail = d
-            default: detail = "Unknown status."
-            }
-            results.append(.init(modelId: model.id, ok: availability.isAvailable, detail: detail))
-        }
-        return ProviderTestOutcome(results: results)
     }
 
     // MARK: - Search
@@ -350,27 +285,6 @@ final class AppModel {
     }
 
     // MARK: - Persistence
-
-    private func persistProviders(previousSchemes: Set<String>) {
-        var settings = SettingsStore.load()
-        settings.selectedModel = selectedModel.rawValue
-        settings.providers = providers.map {
-            PersistedProviderDraft(
-                scheme: $0.scheme, displayName: $0.displayName, kind: $0.kind.rawValue,
-                baseURL: $0.baseURL, models: $0.models,
-                webSearchSupported: $0.webSearchSupported, webSearchEnabled: $0.webSearchEnabled,
-                maxSearches: $0.maxSearches)
-        }
-        SettingsStore.save(settings)
-
-        let currentSchemes = Set(providers.map(\.scheme))
-        for draft in providers where !draft.apiKey.isEmpty {
-            KeychainStore.set(draft.apiKey, account: draft.scheme)
-        }
-        for removedScheme in previousSchemes.subtracting(currentSchemes) {
-            KeychainStore.delete(account: removedScheme)
-        }
-    }
 
     func persistSelectedModel() {
         var settings = SettingsStore.load()

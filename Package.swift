@@ -3,13 +3,13 @@ import Foundation
 import PackageDescription
 
 // Two products share this manifest: the original "WebSearch" CLI (bare `swift run`, Apple
-// on-device only) and "WebSearchApp", a SwiftUI .app built via project.yml/xcodegen (both
-// on-device and hosted providers, picked at runtime). Core + Components come from
-// locallm/Components (the SDK's own open-source Components package, which vendors Core as a
-// binary) rather than a Core binaryTarget declared here — WebSearchApp's Xcode project opens
-// this manifest and Components' manifest in one graph, and two packages declaring a target of
-// the same name is a hard SwiftPM error. Same reason examples/model-switch's own Package.swift
-// avoids it (see that file's top comment).
+// on-device only) and "WebSearchApp", a SwiftUI .app built via project.yml/xcodegen — Apple
+// on-device plus downloadable MLX open-weight models, picked at runtime, all local (no hosted
+// providers). Core + Components come from locallm/Components (the SDK's own open-source
+// Components package, which vendors Core as a binary) rather than a Core binaryTarget declared
+// here — WebSearchApp's Xcode project opens this manifest and Components' manifest in one graph,
+// and two packages declaring a target of the same name is a hard SwiftPM error. Same reason
+// examples/model-switch's own Package.swift avoids it (see that file's top comment).
 
 struct SDKRelease {
     let url: String
@@ -18,15 +18,15 @@ struct SDKRelease {
 
 let defaultSDKVersion = "1.0.0-beta.4"
 
-// LocalLMLabSDKRemote — only WebSearchApp needs this (hosted providers); the CLI doesn't link it.
-let knownRemoteReleases: [String: SDKRelease] = [
+// LocalLMLabSDKInference (the MLX runtime) — only WebSearchApp needs this; the CLI doesn't link it.
+let knownInferenceReleases: [String: SDKRelease] = [
     "1.0.0-beta.3": SDKRelease(
-        url: "https://github.com/ancientcomputing/locallm/releases/download/v1.0.0-beta.3/LocalLMLabSDKRemote-1.0.0-beta.3.xcframework.zip",
-        checksum: "2b1e401a606c2c34d3e086cf9a2edad9d2c9ca730a3c3840b964f88d9e2e446b"
+        url: "https://github.com/ancientcomputing/locallm/releases/download/v1.0.0-beta.3/LocalLMLabSDKInference-1.0.0-beta.3.xcframework.zip",
+        checksum: "0e2b3cc522291dd6c0afdede6ee4516d272ed20b5c22adad68b80893c266800d"
     ),
     "1.0.0-beta.4": SDKRelease(
-        url: "https://github.com/ancientcomputing/locallm/releases/download/v1.0.0-beta.4/LocalLMLabSDKRemote-1.0.0-beta.4.xcframework.zip",
-        checksum: "a73a06bf04a2dd3b1a15b40770f12c0565f8cbf1a97eaa604317b09e3a860454"
+        url: "https://github.com/ancientcomputing/locallm/releases/download/v1.0.0-beta.4/LocalLMLabSDKInference-1.0.0-beta.4.xcframework.zip",
+        checksum: "fa8feb19883f9a465a69f39d756f1b41b515c8298c891b06fef5da5b81b2a03c"
     ),
 ]
 
@@ -37,29 +37,29 @@ func failManifest(_ message: String) -> Never {
 
 let requestedSDKVersion = ProcessInfo.processInfo.environment["LOCALLM_SDK_VERSION"] ?? defaultSDKVersion
 
-guard let remoteRelease = knownRemoteReleases[requestedSDKVersion] else {
+guard let inferenceRelease = knownInferenceReleases[requestedSDKVersion] else {
     failManifest("""
     error: Unknown LOCALLM_SDK_VERSION "\(requestedSDKVersion)".
-    Known versions: \(knownRemoteReleases.keys.sorted().joined(separator: ", "))
+    Known versions: \(knownInferenceReleases.keys.sorted().joined(separator: ", "))
     """)
 }
 
 let package = Package(
     name: "WebSearch",
-    platforms: [.macOS("26.0")],
+    platforms: [.macOS("27.0")],
     products: [
-        // Vend Remote as a library product so WebSearchApp's Xcode project (project.yml) can
+        // Vend Inference as a library product so WebSearchApp's Xcode project (project.yml) can
         // depend on it by name. `swift build`/`swift run WebSearch` doesn't need this.
-        .library(name: "LocalLMLabSDKRemote", targets: ["LocalLMLabSDKRemote"])
+        .library(name: "LocalLMLabSDKInference", targets: ["LocalLMLabSDKInference"])
     ],
     dependencies: [
         .package(path: "locallm/Components")
     ],
     targets: [
         .binaryTarget(
-            name: "LocalLMLabSDKRemote",
-            url: remoteRelease.url,
-            checksum: remoteRelease.checksum
+            name: "LocalLMLabSDKInference",
+            url: inferenceRelease.url,
+            checksum: inferenceRelease.checksum
         ),
         .executableTarget(
             name: "WebSearch",

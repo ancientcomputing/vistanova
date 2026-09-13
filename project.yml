@@ -2,10 +2,10 @@
 #
 #   brew install xcodegen && xcodegen generate      # regenerates WebSearchApp.xcodeproj
 #
-# Same shape as locallm/examples/model-switch/project.yml: ad-hoc signed, no sandbox, for local
-# dev. No entitlements and no OAuth URL scheme needed — Tavily connects via a static API key
-# (.pat), and Remote's hosted providers auth with a plain API key too, so nothing here is
-# TCC-gated or OAuth-gated.
+# Same shape as locallm/examples/repo-qa-local/model-switch project.yml: ad-hoc signed, no
+# sandbox, for local dev. No entitlements and no OAuth URL scheme needed — Tavily connects via a
+# static API key (.pat), and every model here (Apple on-device + downloadable MLX) runs with no
+# cloud auth at all, so nothing here is TCC-gated or OAuth-gated.
 name: WebSearchApp
 options:
   bundleIdPrefix: lab.locallm.websearch
@@ -56,4 +56,4 @@ targets:
       - package: Components
         product: LocalLMLabSDKComponents
       - package: WebSearchPackage
-        product: LocalLMLabSDKRemote
+        product: LocalLMLabSDKInference
