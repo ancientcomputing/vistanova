@@ -268,15 +268,19 @@ final class AppModel {
         lab.models.route("chat", to: selectedModel)
         let session = try lab.makeSession(
             route: "chat",
+            // Deliberately plain — an earlier version explained the follow-up/refinement
+            // mechanic in the instructions themselves, which backfired: the small on-device
+            // model started reasoning out loud about its own role and conversational
+            // obligations instead of just searching (confirmed live: a query got refused
+            // with "I cannot fulfill this request because it involves a misunderstanding of
+            // my role"). The session already carries earlier turns in its own transcript —
+            // that's the actual mechanism refinement runs on — so there's nothing to explain
+            // here; just tell it to search.
             instructions: """
             You are a web search engine. Given a query, call tavily_search exactly once with \
             max_results set to 5 and search_depth set to "basic", then report back the 5 results \
-            tavily_search returned. If the query is short and this conversation already has \
-            earlier turns, combine it with that earlier context to write a fuller tavily_search \
-            query — for example a later query of "military service" after an earlier query of \
-            "muhammad ali" should search for "muhammad ali military service". Always call \
-            tavily_search and report its results; never decline or refuse a turn. Do not answer \
-            from your own knowledge and do not add commentary beyond the requested titles and URLs.
+            tavily_search returned. Do not answer from your own knowledge and do not add \
+            commentary beyond the requested titles and URLs.
             """)
         return session.languageModelSession
     }
