@@ -271,15 +271,17 @@ final class AppModel {
             instructions: """
             You are a web search engine. Given a query, call tavily_search exactly once with \
             max_results set to 5 and search_depth set to "basic", then report back the 5 results \
-            tavily_search returned. If this is a follow-up to a previous query in the same \
-            conversation, use that context to make the search more specific rather than repeating \
-            the earlier search verbatim. Do not answer from your own knowledge and do not add \
-            commentary beyond the requested titles and URLs.
+            tavily_search returned. If the query is short and this conversation already has \
+            earlier turns, combine it with that earlier context to write a fuller tavily_search \
+            query — for example a later query of "military service" after an earlier query of \
+            "muhammad ali" should search for "muhammad ali military service". Always call \
+            tavily_search and report its results; never decline or refuse a turn. Do not answer \
+            from your own knowledge and do not add commentary beyond the requested titles and URLs.
             """)
         return session.languageModelSession
     }
 
-    private func search(query: String, using session: LanguageModelSession) async throws -> [SearchResultLink] {
+    private func search(query: String, using session: LanguageModelSession, isRetry: Bool = false) async throws -> [SearchResultLink] {
         do {
             let response = try await session.respond(to: query, generating: SearchResults.self)
             return response.content.pages.map { SearchResultLink(title: $0.title, url: $0.url) }
@@ -291,6 +293,12 @@ final class AppModel {
             // {...5 real results...}"). Recover it rather than dead-end a turn that actually
             // worked.
             if let recovered = await Self.recoverPages(from: error) { return recovered }
+            // No JSON to recover — a plain-text decline. These have been non-deterministic in
+            // testing (the same query can succeed on a fresh attempt), so retry once before
+            // surfacing the error.
+            if !isRetry {
+                return try await search(query: query, using: session, isRetry: true)
+            }
             throw error
         }
     }
