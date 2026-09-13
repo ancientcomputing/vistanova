@@ -1,6 +1,5 @@
 import SwiftUI
 import LocalLMLabSDKCore
-import LocalLMLabSDKComponents
 
 @main
 @available(macOS 27, *)
@@ -28,23 +27,44 @@ private struct SettingsScreen: View {
         VStack(alignment: .leading, spacing: 0) {
             tavilySection
             Divider()
-            // Apple on-device + downloadable MLX models (with a live progress bar and an "Add
-            // from Hugging Face" field) — no cloud providers. show27OnlyModels is moot here since
-            // the app already requires macOS 27.
-            ModelPickerView(
-                registry: model.lab.models,
-                selection: Binding(
-                    get: { model.selectedModel },
-                    set: { newValue in
-                        guard let newValue, newValue != model.selectedModel else { return }
-                        model.selectedModel = newValue
-                        model.persistSelectedModel()
-                        model.endActiveThread()
-                    }))
+            modelSection
         }
         .sheet(isPresented: $showingTavilyReplace) {
             TavilySetupView(model: model)
         }
+    }
+
+    // Plain dropdowns, not Components' ModelPickerView — that view's own "Downloaded models"
+    // section (with its Hugging Face download field) is more than this app needs: only one
+    // specific MLX model is ever offered as a summary-model choice (see AppModel.defaultSummaryModel),
+    // downloaded on demand from summarize() itself rather than browsed for here.
+    private var modelSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Models").font(AppFont.headline)
+            Picker("Web search", selection: Binding(
+                get: { model.searchModel },
+                set: { model.selectSearchModel($0) }
+            )) {
+                ForEach(model.availableModels, id: \.rawValue) { id in
+                    Text(label(for: id)).tag(id)
+                }
+            }
+            Picker("Summary", selection: Binding(
+                get: { model.summaryModel },
+                set: { model.selectSummaryModel($0) }
+            )) {
+                ForEach(model.summaryModelOptions, id: \.rawValue) { id in
+                    Text(label(for: id)).tag(id)
+                }
+            }
+        }
+        .padding(16)
+    }
+
+    private func label(for id: ModelID) -> String {
+        let name = id.rest.isEmpty ? id.scheme : "\(id.scheme): \(id.rest)"
+        let isReady = model.lab.models.availability(for: id).isAvailable
+        return isReady ? name : "\(name) (not downloaded)"
     }
 
     private var tavilySection: some View {

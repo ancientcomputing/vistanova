@@ -29,21 +29,14 @@ struct ChatView: View {
             TavilySetupView(model: model)
                 .interactiveDismissDisabled()
         }
+        .sheet(item: $model.pendingDownload) { download in
+            DownloadProgressView(download: download, model: model)
+        }
     }
 
+    // Model choice lives in Settings only now — see AppModel.searchModel/summaryModel.
     private var toolbar: some View {
         HStack(spacing: 12) {
-            Picker("Model", selection: $model.selectedModel) {
-                ForEach(model.availableModels, id: \.rawValue) { id in
-                    Text(id.rest.isEmpty ? id.scheme : "\(id.scheme): \(id.rest)").tag(id)
-                }
-            }
-            .frame(maxWidth: 280)
-            .onChange(of: model.selectedModel) { _, _ in
-                model.persistSelectedModel()
-                model.endActiveThread()
-            }
-
             if !model.tavilyConnected {
                 Label("Tavily not connected", systemImage: "exclamationmark.triangle")
                     .font(AppFont.caption)
@@ -196,5 +189,28 @@ private struct TurnView: View {
             .font(AppFont.caption)
             .padding(.top, 4)
         }
+    }
+}
+
+/// Shown the first time `summaryModel` (the default: Qwen3-4B-4bit) isn't downloaded yet —
+/// triggered from inside `summarize()` itself, not a separate "browse models" flow. Cancelling
+/// just means no summary this time; nothing else in the app is blocked by it.
+@available(macOS 27, *)
+private struct DownloadProgressView: View {
+    let download: PendingDownload
+    let model: AppModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Downloading summary model").font(AppFont.title2).bold()
+            Text(download.repoID).font(AppFont.caption).foregroundStyle(.secondary)
+            ProgressView(value: download.fraction)
+            HStack {
+                Spacer()
+                Button("Cancel") { model.cancelPendingDownload() }
+            }
+        }
+        .padding(24)
+        .frame(width: 360)
     }
 }

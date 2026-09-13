@@ -1,7 +1,11 @@
-// AppModel — the app's one piece of real logic: connect Tavily over MCP, let the user pick any
-// registered LOCAL model (Apple on-device, or a downloaded MLX open-weight model — no cloud
-// providers; a search backend other than Tavily, e.g. Brave/Exa, is a config option for later,
-// not built yet), and run searches as topic threads.
+// AppModel — the app's one piece of real logic: connect Tavily over MCP, let the user pick a
+// LOCAL model for search and, independently, a LOCAL model for summarizing (Apple on-device or a
+// downloaded MLX open-weight model either way — no cloud providers; a search backend other than
+// Tavily, e.g. Brave/Exa, is a config option for later, not built yet), and run searches as topic
+// threads. The two model choices are independent because they carry different risk: search needs
+// reliable tool-calling above all else (system model, proven reliable there), while summarizing
+// is pure text synthesis with no tool call at all, so it's the one place worth defaulting to an
+// MLX model instead — see `defaultSummaryModel`.
 //
 // Refinement, in one paragraph: an earlier version had the model itself decide whether a new
 // query continued the current topic or started a fresh one, silently expanding an ambiguous
@@ -19,8 +23,15 @@ import Foundation
 import Observation
 import FoundationModels
 import LocalLMLabSDKCore
-import LocalLMLabSDKComponents
 import LocalLMLabSDKInference
+
+/// Progress state for a one-time MLX model download, triggered from `summarize()` the first time
+/// the summary model isn't installed yet — see `AppModel.downloadSummaryModel()`.
+struct PendingDownload: Identifiable {
+    let id = UUID()
+    let repoID: String
+    var fraction: Double = 0
+}
 
 @Generable
 struct WebPage {
@@ -44,7 +55,13 @@ struct SearchResults {
 final class AppModel {
     let lab: LocalLMLab
     private let mlxProvider = MLXModelProvider()
-    var selectedModel: ModelID = .system
+
+    /// Two independent model choices, not one — search needs reliable tool-calling above all
+    /// else, while summarization is pure text synthesis with none of that risk, so it's the one
+    /// place a different (and possibly less tool-reliable) model is worth defaulting to.
+    var searchModel: ModelID = .system
+    var summaryModel: ModelID = AppModel.defaultSummaryModel
+    static let defaultSummaryModel = ModelID(scheme: "mlx", rest: "mlx-community/Qwen3-4B-4bit")!
 
     var threads: [TopicThread] = []
     var input: String = ""
@@ -52,6 +69,9 @@ final class AppModel {
     var lastError: String?
     /// Turns currently summarizing — drives a per-turn spinner in ChatView.
     var summarizingTurnIDs: Set<UUID> = []
+    /// Non-nil while downloading `summaryModel` for the first time — drives a progress sheet.
+    var pendingDownload: PendingDownload?
+    private var downloadCancelled = false
 
     /// nil until Tavily has been added at least once (drives the blocking setup sheet).
     var tavilyConfigured = false
@@ -79,12 +99,13 @@ final class AppModel {
     init() {
         lab = LocalLMLab(configuration: .init(providers: [SystemModelProvider(), mlxProvider]))
         // The SDK's own persistence for exactly this (route map + residency + installed
-        // records) — restore(from:) before reading back the "chat" route, rather than this app
-        // tracking selectedModel as its own separate string.
+        // records) — restore(from:) before reading the "search"/"summary" routes back, rather
+        // than this app tracking either model choice as its own separate string.
         if let modelState = ModelStateStore.load() {
             lab.restore(from: modelState)
         }
-        selectedModel = lab.models.modelID(for: "chat") ?? .system
+        searchModel = lab.models.modelID(for: "search") ?? .system
+        summaryModel = lab.models.modelID(for: "summary") ?? Self.defaultSummaryModel
 
         let settings = SettingsStore.load()
         threads = HistoryStore.load()
@@ -95,8 +116,34 @@ final class AppModel {
         }
     }
 
+    /// For the "Web search model" picker only — a model actually ready to use right now. The
+    /// summary picker uses `summaryModelOptions` instead, which also offers the (possibly not yet
+    /// downloaded) default.
     var availableModels: [ModelID] {
         lab.models.knownModels.filter { lab.models.availability(for: $0).isAvailable }
+    }
+
+    /// Ready-to-use models plus the default summary model, even before it's been downloaded —
+    /// picking it is what triggers `summarize()`'s one-time download prompt.
+    var summaryModelOptions: [ModelID] {
+        var options = availableModels
+        if !options.contains(Self.defaultSummaryModel) { options.append(Self.defaultSummaryModel) }
+        return options
+    }
+
+    func selectSearchModel(_ id: ModelID) {
+        guard id != searchModel else { return }
+        searchModel = id
+        lab.models.route("search", to: id)
+        ModelStateStore.save(lab.snapshot())
+        endActiveThread()
+    }
+
+    func selectSummaryModel(_ id: ModelID) {
+        guard id != summaryModel else { return }
+        summaryModel = id
+        lab.models.route("summary", to: id)
+        ModelStateStore.save(lab.snapshot())
     }
 
     // MARK: - Tavily (MCP)
@@ -156,7 +203,7 @@ final class AppModel {
         defer { isSearching = false }
 
         do {
-            let capability = await searchCapability(selectedModel)
+            let capability = await searchCapability(searchModel)
             guard capability.toolCalling else {
                 lastError = "This model doesn't reliably call tools, so it can't be trusted to actually search rather than answer from its own training data. Pick a different model in Settings."
                 return
@@ -217,7 +264,7 @@ final class AppModel {
     /// (confirmed live: "last ceo" inside a Yahoo thread got grounded to Tim Cook). Refinement now
     /// happens in the composer, not the model — see this file's top comment.
     private func makeSearchSession(supportsGuidedGeneration: Bool) throws -> (LocalLMLabSession, SearchQueryCapture) {
-        lab.models.route("chat", to: selectedModel)
+        lab.models.route("search", to: searchModel)
         // The output-format line only gets added when guided generation isn't available: with it,
         // `@Generable` enforces the shape directly and an extra formatting instruction is just
         // more words for a small model to misread; without it, the model has no schema at all, so
@@ -230,7 +277,7 @@ final class AppModel {
         let capture = SearchQueryCapture()
         let tool = TavilySearchTool(manager: lab.mcp, serverID: tavilyServerID, capture: capture)
         let session = try makeSessionSuppressingThinking(
-            route: "chat",
+            route: "search",
             tools: [tool],
             instructions: """
             You are a web search engine. Given a query, call tavily_search exactly once, then \
@@ -405,14 +452,21 @@ final class AppModel {
         summarizingTurnIDs.insert(turnID)
         defer { summarizingTurnIDs.remove(turnID) }
 
+        // First time the (possibly still-default) summary model is used: it may not be
+        // downloaded yet. Show progress, let the user cancel — cancelling just means no summary
+        // this time, not an error.
+        if summaryModel.scheme == "mlx", !mlxProvider.installed.contains(where: { $0.id == summaryModel }) {
+            guard await downloadSummaryModel() else { return }
+        }
+
         let sources = turn.links.enumerated().map { index, link in
             "\(index + 1). \(link.title)\(link.snippet.isEmpty ? "" : " — \(link.snippet)")"
         }.joined(separator: "\n")
 
         do {
-            lab.models.route("chat", to: selectedModel)
+            lab.models.route("summary", to: summaryModel)
             let session = try makeSessionSuppressingThinking(
-                route: "chat",
+                route: "summary",
                 instructions: "Summarize the given web search results in 2-3 sentences, as one plain paragraph. No headers, no list, no commentary about the sources themselves.",
                 includeMCPTools: false)
             let response = try await session.languageModelSession.respond(
@@ -424,6 +478,37 @@ final class AppModel {
         }
     }
 
+    /// Drives `pendingDownload` (a progress sheet in ChatView) while `mlxProvider.download(_:)`
+    /// runs. Returns false on cancel (`cancelPendingDownload()`, checked between stream events —
+    /// this stops OUR wait, not necessarily the underlying network fetch) or failure; true once
+    /// the model reports `.completed`.
+    private func downloadSummaryModel() async -> Bool {
+        let repoID = summaryModel.rest
+        downloadCancelled = false
+        pendingDownload = PendingDownload(repoID: repoID)
+        defer { pendingDownload = nil }
+        do {
+            for try await event in mlxProvider.download(repoID) {
+                if downloadCancelled { return false }
+                if case .progress(_, _, let fraction) = event {
+                    pendingDownload?.fraction = fraction
+                } else if case .completed = event {
+                    return true
+                }
+            }
+            return false
+        } catch {
+            if !downloadCancelled {
+                lastError = await GenerationErrorDescription.describe(error)
+            }
+            return false
+        }
+    }
+
+    func cancelPendingDownload() {
+        downloadCancelled = true
+    }
+
     /// Belt-and-suspenders for models that always reason (DeepSeek-R1 and its distills):
     /// `effort: .off` can't suppress their `<think>` block at all — `makeSessionSuppressingThinking`
     /// falls back to no effort option for those rather than failing, which means the tag can still
@@ -433,10 +518,4 @@ final class AppModel {
         return String(text[range.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    // MARK: - Persistence
-
-    func persistSelectedModel() {
-        lab.models.route("chat", to: selectedModel)
-        ModelStateStore.save(lab.snapshot())
-    }
 }
