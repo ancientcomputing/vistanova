@@ -124,8 +124,12 @@ private struct TurnView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(turn.query)
-                .font(AppFont.subheadline).bold()
+            // What was actually sent to tavily_search, not the user's literal input — that's
+            // already shown once, either as the thread's own header (first turn) or was typed a
+            // moment ago (later turns); repeating it here read as a bug, not a feature.
+            Text(turn.searchQuery ?? turn.query)
+                .font(AppFont.subheadline).italic()
+                .foregroundStyle(.secondary)
             ForEach(turn.links) { link in
                 Link(destination: URL(string: link.url) ?? URL(string: "https://example.com")!) {
                     VStack(alignment: .leading, spacing: 1) {

@@ -19,6 +19,10 @@ struct SearchResultLink: Codable, Identifiable, Hashable {
 struct SearchTurn: Codable, Identifiable, Hashable {
     var id = UUID()
     var query: String
+    /// What was actually sent to tavily_search — may differ from `query` (e.g. combined with
+    /// earlier turns' context on a refinement). nil only if the search backend fell back to
+    /// unstructured text parsing with no capturable tool argument.
+    var searchQuery: String?
     var links: [SearchResultLink]
     var timestamp: Date
 }

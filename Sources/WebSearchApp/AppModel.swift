@@ -5,12 +5,13 @@
 // itself decides the user has moved on.
 //
 // Conversational fine-tuning, in one paragraph: a topic thread owns one real `LanguageModelSession`
-// (via `lab.makeSession`, tools = the enabled MCP tools = tavily_search). Every `send()` while
-// that thread is open re-uses the SAME session, so the model sees prior turns and can narrow the
-// tavily_search query using that context. Before reusing it, a small classification call (a
-// separate, disposable session — never the thread's own, so classifying never pollutes its
-// transcript) asks "is this a refinement or a new topic?". A new topic drops the old session
-// entirely and starts a fresh one with no memory of it.
+// (via `lab.makeSession`, tools: [TavilySearchTool] — a hand-written Path B wrapper, not the
+// auto-assembled MCPTool; see TavilySearchTool.swift for why). Every `send()` while that thread is
+// open re-uses the SAME session, so the model sees prior turns and can narrow the tavily_search
+// query using that context. Before reusing it, a small classification call (a separate, disposable
+// session — never the thread's own, so classifying never pollutes its transcript) asks "is this a
+// refinement or a new topic?". A new topic drops the old session entirely and starts a fresh one
+// with no memory of it.
 
 import Foundation
 import Observation
@@ -59,14 +60,18 @@ final class AppModel {
     private let tavilyURL = URL(string: "https://mcp.tavily.com/mcp/")!
     private var tavilyServerID: MCPServerID { MCPServerID(rawValue: tavilyURL.absoluteString) }
 
-    /// The live session behind the currently-open topic thread, and which thread it belongs to.
-    /// nil whenever there's no open thread (fresh launch, or the last turn started a new topic
-    /// that hasn't run yet). Kept as the SDK's `LocalLMLabSession` wrapper, not the raw
-    /// `LanguageModelSession`, so `search(...)` can watch `.events` for whether tavily_search
-    /// actually ran — see that method's comment.
-    private var activeSession: LocalLMLabSession?
-    private var activeSessionSupportsGuidedGeneration = false
-    private var activeThreadID: UUID?
+    /// The live session behind the currently-open topic thread. nil whenever there's no open
+    /// thread (fresh launch, or the last turn started a new topic that hasn't run yet). The
+    /// session is the SDK's `LocalLMLabSession` wrapper, not the raw `LanguageModelSession`, so
+    /// `search(...)` can watch `.events` for whether tavily_search actually ran; `capture` reads
+    /// back the query argument that same tool call used, for display (see TavilySearchTool.swift).
+    private struct ActiveThread {
+        let id: UUID
+        let session: LocalLMLabSession
+        let capture: SearchQueryCapture
+        let supportsGuidedGeneration: Bool
+    }
+    private var activeThread: ActiveThread?
 
     /// Two independent things to know about a model before searching with it, both confirmed
     /// live to vary across MLX models: whether it reliably calls a tool at all (Qwen3-8B-4bit,
@@ -102,7 +107,6 @@ final class AppModel {
             url: tavilyURL, displayName: "Tavily", authType: .pat, patToken: apiKey)
         switch result {
         case .success(let state):
-            enableOnlySearch(on: state)
             tavilyConfigured = true
             tavilyConnected = true
             var settings = SettingsStore.load()
@@ -132,17 +136,10 @@ final class AppModel {
             authType: .pat, manualClientID: nil, resources: []
         )])
         let result = await lab.mcp.reconnect(tavilyServerID)
-        if case .success(let state) = result {
-            enableOnlySearch(on: state)
+        if case .success = result {
             tavilyConnected = true
         } else {
             tavilyConnected = false
-        }
-    }
-
-    private func enableOnlySearch(on state: MCPServerState) {
-        for descriptor in state.tools {
-            lab.mcp.setToolEnabled(server: state.id, tool: descriptor.name, enabled: descriptor.name == "tavily_search")
         }
     }
 
@@ -159,29 +156,26 @@ final class AppModel {
         defer { isSearching = false; input = "" }
 
         var continuesActiveThread = false
-        if activeSession != nil {
+        if activeThread != nil {
             continuesActiveThread = await classify(query: query)
         }
 
         do {
-            let links: [SearchResultLink]
-            if continuesActiveThread, let session = activeSession, let threadID = activeThreadID {
-                links = try await search(query: query, using: session, supportsGuidedGeneration: activeSessionSupportsGuidedGeneration)
-                appendTurn(query: query, links: links, toThreadID: threadID)
+            if continuesActiveThread, let thread = activeThread {
+                let (links, searchQuery) = try await search(query: query, using: thread.session, capture: thread.capture, supportsGuidedGeneration: thread.supportsGuidedGeneration)
+                appendTurn(query: query, searchQuery: searchQuery, links: links, toThreadID: thread.id)
             } else {
                 let capability = await searchCapability(selectedModel)
                 guard capability.toolCalling else {
                     lastError = "This model doesn't reliably call tools, so it can't be trusted to actually search rather than answer from its own training data. Pick a different model in Settings."
                     return
                 }
-                let session = try makeSearchSession(supportsGuidedGeneration: capability.guidedGeneration)
-                activeSession = session
-                activeSessionSupportsGuidedGeneration = capability.guidedGeneration
-                links = try await search(query: query, using: session, supportsGuidedGeneration: capability.guidedGeneration)
+                let (session, capture) = try makeSearchSession(supportsGuidedGeneration: capability.guidedGeneration)
+                let (links, searchQuery) = try await search(query: query, using: session, capture: capture, supportsGuidedGeneration: capability.guidedGeneration)
                 let thread = TopicThread(
-                    turns: [SearchTurn(query: query, links: links, timestamp: Date())],
+                    turns: [SearchTurn(query: query, searchQuery: searchQuery, links: links, timestamp: Date())],
                     createdAt: Date())
-                activeThreadID = thread.id
+                activeThread = ActiveThread(id: thread.id, session: session, capture: capture, supportsGuidedGeneration: capability.guidedGeneration)
                 threads.append(thread)
                 HistoryStore.save(threads)
             }
@@ -194,9 +188,7 @@ final class AppModel {
     /// when the model's own classification can't run (e.g. mid-turn failure) or the user wants
     /// an explicit reset.
     func endActiveThread() {
-        activeSession = nil
-        activeSessionSupportsGuidedGeneration = false
-        activeThreadID = nil
+        activeThread = nil
     }
 
     /// Apple's own models (on-device, PCC) always support tool calling and `@Generable` structured
@@ -214,7 +206,7 @@ final class AppModel {
     }
 
     private func classify(query: String) async -> Bool {
-        guard let threadID = activeThreadID,
+        guard let threadID = activeThread?.id,
               let thread = threads.first(where: { $0.id == threadID }) else { return false }
         let previousQueries = thread.turns.map(\.query).joined(separator: "; ")
         do {
@@ -237,7 +229,7 @@ final class AppModel {
         }
     }
 
-    private func makeSearchSession(supportsGuidedGeneration: Bool) throws -> LocalLMLabSession {
+    private func makeSearchSession(supportsGuidedGeneration: Bool) throws -> (LocalLMLabSession, SearchQueryCapture) {
         lab.models.route("chat", to: selectedModel)
         // Deliberately plain otherwise — an earlier version explained the follow-up/refinement
         // mechanic in the instructions themselves, which backfired: the small on-device model
@@ -256,25 +248,31 @@ final class AppModel {
              Respond with exactly 5 lines, one per result, each formatted exactly as \
             "Title — URL" and nothing else — no numbering, headers, or extra commentary.
             """
+        let capture = SearchQueryCapture()
+        let tool = TavilySearchTool(manager: lab.mcp, serverID: tavilyServerID, capture: capture)
         let session = try lab.makeSession(
             route: "chat",
+            tools: [tool],
             instructions: """
-            You are a web search engine. Given a query, call tavily_search exactly once with \
-            max_results set to 5 and search_depth set to "basic", then report back the 5 results \
-            tavily_search returned. Do not answer from your own knowledge and do not add \
-            commentary beyond the requested titles and URLs.\(formatInstruction)
-            """)
-        return session
+            You are a web search engine. Given a query, call tavily_search exactly once, then \
+            report back the 5 results tavily_search returned. Do not answer from your own \
+            knowledge and do not add commentary beyond the requested titles and URLs.\(formatInstruction)
+            """,
+            includeMCPTools: false)
+        return (session, capture)
     }
 
     /// Up to 2 full attempts, each running to completion (including cancelling its own event
     /// watcher) before the next starts — deliberately a loop, not recursion, so two attempts
-    /// never watch `session.events` concurrently.
-    private func search(query: String, using session: LocalLMLabSession, supportsGuidedGeneration: Bool) async throws -> [SearchResultLink] {
+    /// never watch `session.events` concurrently. Returns the links plus whatever query
+    /// `TavilySearchTool` actually captured, so the UI can show what was really searched instead
+    /// of just repeating the user's literal input.
+    private func search(query: String, using session: LocalLMLabSession, capture: SearchQueryCapture, supportsGuidedGeneration: Bool) async throws -> (links: [SearchResultLink], searchQuery: String?) {
         var lastError: Error = SearchParseError.toolNotCalled
         for attempt in 0..<2 {
             do {
-                return try await attemptSearch(query: query, using: session, supportsGuidedGeneration: supportsGuidedGeneration)
+                let links = try await attemptSearch(query: query, using: session, supportsGuidedGeneration: supportsGuidedGeneration)
+                return (links, await capture.query)
             } catch {
                 lastError = error
                 if attempt == 1 { throw error }
@@ -395,9 +393,9 @@ final class AppModel {
         }
     }
 
-    private func appendTurn(query: String, links: [SearchResultLink], toThreadID threadID: UUID) {
+    private func appendTurn(query: String, searchQuery: String?, links: [SearchResultLink], toThreadID threadID: UUID) {
         guard let idx = threads.firstIndex(where: { $0.id == threadID }) else { return }
-        threads[idx].turns.append(SearchTurn(query: query, links: links, timestamp: Date()))
+        threads[idx].turns.append(SearchTurn(query: query, searchQuery: searchQuery, links: links, timestamp: Date()))
         HistoryStore.save(threads)
     }
 
