@@ -24,7 +24,7 @@ struct ChatView: View {
             Divider()
             transcript
             Divider()
-            composer
+            SearchBox(model: model)
         }
         .sheet(isPresented: .constant(!model.tavilyConfigured)) {
             TavilySetupView(model: model)
@@ -74,17 +74,29 @@ struct ChatView: View {
         }
     }
 
-    private var composer: some View {
-        VStack(alignment: .leading, spacing: 4) {
+}
+
+/// The app's primary control, first-class rather than an inline computed property — a bigger,
+/// more prominent search box (not a chat text field) is the whole point of "first-classing" it:
+/// its own type is what makes further sizing/styling passes tractable.
+@available(macOS 27, *)
+private struct SearchBox: View {
+    @Bindable var model: AppModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
             if let error = model.lastError {
                 Text(error).font(AppFont.caption).foregroundStyle(.red)
             }
-            HStack {
+            HStack(spacing: 12) {
                 ZStack(alignment: .trailing) {
-                    TextField("Search…", text: $model.input, axis: .vertical)
-                        .font(AppFont.body)
-                        .textFieldStyle(.roundedBorder)
+                    TextField("Search the web…", text: $model.input, axis: .vertical)
+                        .font(AppFont.searchBox)
+                        .textFieldStyle(.plain)
                         .lineLimit(1...4)
+                        .padding(.vertical, 14)
+                        .padding(.leading, 18)
+                        .padding(.trailing, model.input.isEmpty ? 18 : 44)
                         .onSubmit { Task { await model.send() } }
                         .disabled(!model.tavilyConnected || model.isSearching)
                     if !model.input.isEmpty && !model.isSearching {
@@ -95,25 +107,34 @@ struct ChatView: View {
                             model.clearForNewTopic()
                         } label: {
                             Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 16))
                                 .foregroundStyle(.secondary)
                         }
                         .buttonStyle(.plain)
-                        .padding(.trailing, 6)
+                        .padding(.trailing, 14)
                     }
                 }
+                .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 14))
+                .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(.separator))
+
                 if model.isSearching {
-                    ProgressView().controlSize(.small)
+                    ProgressView()
+                        .controlSize(.regular)
+                        .frame(width: 48, height: 48)
                 } else {
                     Button {
                         Task { await model.send() }
                     } label: {
                         Image(systemName: "paperplane.fill")
+                            .font(.system(size: 18))
+                            .frame(width: 48, height: 48)
                     }
+                    .buttonStyle(.borderedProminent)
                     .disabled(model.input.trimmingCharacters(in: .whitespaces).isEmpty || !model.tavilyConnected)
                 }
             }
         }
-        .padding(10)
+        .padding(16)
     }
 }
 

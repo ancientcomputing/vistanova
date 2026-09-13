@@ -9,4 +9,7 @@ enum AppFont {
     static let subheadline = Font.system(size: 13)
     static let caption = Font.system(size: 12)
     static let caption2 = Font.system(size: 12)
+    /// The main search box's own text — deliberately larger than everything else, so it reads
+    /// as the app's primary control rather than a chat text field.
+    static let searchBox = Font.system(size: 20)
 }
