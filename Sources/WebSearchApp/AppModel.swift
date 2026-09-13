@@ -300,24 +300,34 @@ final class AppModel {
 
     private static func recoverPages(from error: Error) async -> [SearchResultLink]? {
         let description = await GenerationErrorDescription.describe(error)
-        FileHandle.standardError.write(Data("[recover] description=\(description)\n".utf8))
+        if let strict = recoverPagesStrict(description) { return strict }
+        return recoverPagesLeniently(description)
+    }
+
+    /// The common case: the embedded payload is valid JSON.
+    private static func recoverPagesStrict(_ description: String) -> [SearchResultLink]? {
         guard let start = description.firstIndex(of: "{"),
               let end = description.lastIndex(of: "}"),
-              start < end else {
-            FileHandle.standardError.write(Data("[recover] no braces found\n".utf8))
-            return nil
-        }
+              start < end else { return nil }
         let json = description[start...end]
-        guard let data = json.data(using: .utf8) else {
-            FileHandle.standardError.write(Data("[recover] bad utf8\n".utf8))
-            return nil
-        }
-        do {
-            let decoded = try JSONDecoder().decode(RawSearchResults.self, from: data)
-            return decoded.pages.map { SearchResultLink(title: $0.title, url: $0.url) }
-        } catch {
-            FileHandle.standardError.write(Data("[recover] decode failed: \(error)\n".utf8))
-            return nil
+        guard let data = json.data(using: .utf8),
+              let decoded = try? JSONDecoder().decode(RawSearchResults.self, from: data) else { return nil }
+        return decoded.pages.map { SearchResultLink(title: $0.title, url: $0.url) }
+    }
+
+    /// Confirmed live: the guardrail-declined path sometimes drops the quote(s) around a url
+    /// value (`"url": https://…` instead of `"url": "https://…"`), inconsistently — sometimes
+    /// missing the opening quote, sometimes both — which breaks strict JSON parsing outright.
+    /// Pull (title, url) pairs out with a permissive regex instead of requiring well-formed JSON.
+    private static func recoverPagesLeniently(_ description: String) -> [SearchResultLink]? {
+        guard let regex = try? NSRegularExpression(
+            pattern: #""title"\s*:\s*"([^"]*)"\s*,\s*"url"\s*:\s*"?(https?://[^\s",}]+)"?"#
+        ) else { return nil }
+        let ns = description as NSString
+        let matches = regex.matches(in: description, range: NSRange(location: 0, length: ns.length))
+        guard !matches.isEmpty else { return nil }
+        return matches.map {
+            SearchResultLink(title: ns.substring(with: $0.range(at: 1)), url: ns.substring(with: $0.range(at: 2)))
         }
     }
 
