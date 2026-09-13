@@ -1,5 +1,16 @@
 import SwiftUI
+import AppKit
 import LocalLMLabSDKCore
+
+private extension View {
+    /// `Link` gives no visual cursor feedback on macOS by default — show the pointing hand a
+    /// clickable URL implies.
+    func pointingHandCursor() -> some View {
+        onHover { inside in
+            if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+        }
+    }
+}
 
 @available(macOS 27, *)
 struct ChatView: View {
@@ -118,12 +129,16 @@ private struct TurnView: View {
                 Link(destination: URL(string: link.url) ?? URL(string: "https://example.com")!) {
                     VStack(alignment: .leading, spacing: 1) {
                         Text(link.title)
+                            .underline()
+                            .foregroundStyle(.blue)
                         Text(link.url)
                             .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .underline()
+                            .foregroundStyle(.blue.opacity(0.8))
                     }
                 }
                 .buttonStyle(.plain)
+                .pointingHandCursor()
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

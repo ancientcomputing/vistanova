@@ -24,7 +24,7 @@ struct TavilySetupView: View {
                 }
                 Button("Connect", action: connect)
                     .keyboardShortcut(.defaultAction)
-                    .disabled(apiKey.trimmingCharacters(in: .whitespaces).isEmpty || isConnecting)
+                    .disabled(apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isConnecting)
             }
         }
         .padding(24)
@@ -32,7 +32,7 @@ struct TavilySetupView: View {
     }
 
     private func connect() {
-        let key = apiKey.trimmingCharacters(in: .whitespaces)
+        let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !key.isEmpty else { return }
         isConnecting = true
         error = nil

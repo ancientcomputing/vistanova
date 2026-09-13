@@ -280,8 +280,33 @@ final class AppModel {
     }
 
     private func search(query: String, using session: LanguageModelSession) async throws -> [SearchResultLink] {
-        let response = try await session.respond(to: query, generating: SearchResults.self)
-        return response.content.pages.map { SearchResultLink(title: $0.title, url: $0.url) }
+        do {
+            let response = try await session.respond(to: query, generating: SearchResults.self)
+            return response.content.pages.map { SearchResultLink(title: $0.title, url: $0.url) }
+        } catch {
+            // Apple's on-device guardrail can intercept a turn about a public figure/name after
+            // the model already produced a fully valid SearchResults payload — the session then
+            // throws instead of returning, but the JSON survives in the error's own description
+            // (confirmed live: a "Muhammad Ali" search threw "The model declined to respond:
+            // {...5 real results...}"). Recover it rather than dead-end a turn that actually
+            // worked.
+            if let recovered = await Self.recoverPages(from: error) { return recovered }
+            throw error
+        }
+    }
+
+    private struct RawPage: Decodable { let title: String; let url: String }
+    private struct RawSearchResults: Decodable { let pages: [RawPage] }
+
+    private static func recoverPages(from error: Error) async -> [SearchResultLink]? {
+        let description = await GenerationErrorDescription.describe(error)
+        guard let start = description.firstIndex(of: "{"),
+              let end = description.lastIndex(of: "}"),
+              start < end else { return nil }
+        let json = description[start...end]
+        guard let data = json.data(using: .utf8),
+              let decoded = try? JSONDecoder().decode(RawSearchResults.self, from: data) else { return nil }
+        return decoded.pages.map { SearchResultLink(title: $0.title, url: $0.url) }
     }
 
     private func appendTurn(query: String, links: [SearchResultLink], toThreadID threadID: UUID) {
