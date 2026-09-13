@@ -14,6 +14,10 @@ struct SearchResultLink: Codable, Identifiable, Hashable {
     var id = UUID()
     var title: String
     var url: String
+    /// tavily_search's own short description of the page — already present in its response,
+    /// no extra tool call needed to get it. Empty when the model fell back to unstructured
+    /// text parsing (no schema to carry a snippet field).
+    var snippet: String = ""
 }
 
 struct SearchTurn: Codable, Identifiable, Hashable {
@@ -25,6 +29,9 @@ struct SearchTurn: Codable, Identifiable, Hashable {
     var searchQuery: String?
     var links: [SearchResultLink]
     var timestamp: Date
+    /// Set once the user asks to summarize this turn's results — a plain-text synthesis over
+    /// `links`' snippets, no tool call involved.
+    var summary: String?
 }
 
 struct TopicThread: Codable, Identifiable, Hashable {

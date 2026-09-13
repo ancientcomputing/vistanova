@@ -28,6 +28,8 @@ struct WebPage {
     let title: String
     @Guide(description: "The page's full URL, starting with http:// or https://")
     let url: String
+    @Guide(description: "tavily_search's own short description/snippet for this result — copy it verbatim, don't write a new one")
+    let snippet: String
 }
 
 @Generable
@@ -48,6 +50,8 @@ final class AppModel {
     var input: String = ""
     var isSearching = false
     var lastError: String?
+    /// Turns currently summarizing — drives a per-turn spinner in ChatView.
+    var summarizingTurnIDs: Set<UUID> = []
 
     /// nil until Tavily has been added at least once (drives the blocking setup sheet).
     var tavilyConfigured = false
@@ -269,7 +273,7 @@ final class AppModel {
             do {
                 let response = try await session.languageModelSession.respond(to: query, generating: SearchResults.self)
                 guard toolWasCalled else { throw SearchParseError.toolNotCalled }
-                return response.content.pages.map { SearchResultLink(title: $0.title, url: $0.url) }
+                return response.content.pages.map { SearchResultLink(title: $0.title, url: $0.url, snippet: $0.snippet) }
             } catch {
                 // Apple's on-device guardrail can intercept a turn about a public figure/name
                 // after the model already produced a fully valid SearchResults payload — the
@@ -325,7 +329,7 @@ final class AppModel {
         }
     }
 
-    private struct RawPage: Decodable { let title: String; let url: String }
+    private struct RawPage: Decodable { let title: String; let url: String; let snippet: String? }
     private struct RawSearchResults: Decodable { let pages: [RawPage] }
 
     private static func recoverPages(from error: Error) async -> [SearchResultLink]? {
@@ -342,7 +346,7 @@ final class AppModel {
         let json = description[start...end]
         guard let data = json.data(using: .utf8),
               let decoded = try? JSONDecoder().decode(RawSearchResults.self, from: data) else { return nil }
-        return decoded.pages.map { SearchResultLink(title: $0.title, url: $0.url) }
+        return decoded.pages.map { SearchResultLink(title: $0.title, url: $0.url, snippet: $0.snippet ?? "") }
     }
 
     /// Confirmed live: the guardrail-declined path sometimes drops the quote(s) around a url
@@ -365,6 +369,39 @@ final class AppModel {
         guard let idx = threads.firstIndex(where: { $0.id == threadID }) else { return }
         threads[idx].turns.append(SearchTurn(query: query, searchQuery: searchQuery, links: links, timestamp: Date()))
         HistoryStore.save(threads)
+    }
+
+    // MARK: - Summarize
+
+    /// Pure text synthesis over snippets already in hand — no tool call, so none of the
+    /// tool-calling reliability problems `search(...)` has to work around apply here. Finds the
+    /// turn across every thread rather than taking a thread id, since callers only ever have the
+    /// turn on screen.
+    func summarize(turnID: UUID) async {
+        guard let threadIdx = threads.firstIndex(where: { $0.turns.contains(where: { $0.id == turnID }) }),
+              let turnIdx = threads[threadIdx].turns.firstIndex(where: { $0.id == turnID }),
+              !summarizingTurnIDs.contains(turnID) else { return }
+        let turn = threads[threadIdx].turns[turnIdx]
+        summarizingTurnIDs.insert(turnID)
+        defer { summarizingTurnIDs.remove(turnID) }
+
+        let sources = turn.links.enumerated().map { index, link in
+            "\(index + 1). \(link.title)\(link.snippet.isEmpty ? "" : " — \(link.snippet)")"
+        }.joined(separator: "\n")
+
+        do {
+            lab.models.route("chat", to: selectedModel)
+            let session = try lab.makeSession(
+                route: "chat",
+                instructions: "Summarize the given web search results in 2-3 sentences, as one plain paragraph. No headers, no list, no commentary about the sources themselves.",
+                includeMCPTools: false)
+            let response = try await session.languageModelSession.respond(
+                to: "Search results for \"\(turn.searchQuery ?? turn.query)\":\n\(sources)")
+            threads[threadIdx].turns[turnIdx].summary = response.content
+            HistoryStore.save(threads)
+        } catch {
+            lastError = await GenerationErrorDescription.describe(error)
+        }
     }
 
     // MARK: - Persistence

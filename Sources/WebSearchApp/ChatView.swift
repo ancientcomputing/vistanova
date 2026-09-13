@@ -61,7 +61,7 @@ struct ChatView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 18) {
                     ForEach(model.threads) { thread in
-                        ThreadView(thread: thread)
+                        ThreadView(thread: thread, model: model)
                     }
                     Color.clear.frame(height: 1).id("bottom")
                 }
@@ -119,13 +119,14 @@ struct ChatView: View {
 @available(macOS 27, *)
 private struct ThreadView: View {
     let thread: TopicThread
+    let model: AppModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(thread.title)
                 .font(AppFont.headline)
             ForEach(thread.turns) { turn in
-                TurnView(turn: turn)
+                TurnView(turn: turn, model: model)
             }
         }
         .padding(12)
@@ -136,6 +137,7 @@ private struct ThreadView: View {
 @available(macOS 27, *)
 private struct TurnView: View {
     let turn: SearchTurn
+    let model: AppModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -161,7 +163,29 @@ private struct TurnView: View {
                 .buttonStyle(.plain)
                 .pointingHandCursor()
             }
+            summarySection
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private var summarySection: some View {
+        if let summary = turn.summary {
+            Text(summary)
+                .font(AppFont.body)
+                .padding(.top, 4)
+        } else if model.summarizingTurnIDs.contains(turn.id) {
+            HStack(spacing: 6) {
+                ProgressView().controlSize(.small)
+                Text("Summarizing…").font(AppFont.caption).foregroundStyle(.secondary)
+            }
+            .padding(.top, 4)
+        } else {
+            Button("Summarize") {
+                Task { await model.summarize(turnID: turn.id) }
+            }
+            .font(AppFont.caption)
+            .padding(.top, 4)
+        }
     }
 }
