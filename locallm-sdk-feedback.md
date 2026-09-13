@@ -1,6 +1,6 @@
 # LocalLM Lab SDK feedback — from building WebSearch
 
-Two gaps surfaced by real friction while building `WebSearchApp` (a SwiftUI search app: Apple
+Three gaps surfaced by real friction while building `WebSearchApp` (a SwiftUI search app: Apple
 on-device or a downloaded MLX model drives one `tavily_search` MCP tool call). Not requests in the
 abstract — each one is a workaround we actually had to write, in a small app with exactly one tool
 and one route.
@@ -60,10 +60,48 @@ both remove it:
   out-of-band signal (a `session` property, or a `.events` case) instead of a thrown error — since
   a caller asking for `.off` is very rarely trying to *require* the guarantee, just prefer it.
 
-## Context for both
+## 3. `DownloadableModelProvider` has no way to cancel an in-progress download
 
-Both of these came from a single small app with one tool and one route. Neither is a "we couldn't
-figure out the API" complaint — the workarounds are small and were straightforward to write once
-the gap was clear. They're flagged because the underlying capability (a tool call's real
-arguments/result; "prefer no reasoning" as a preference rather than a hard requirement) seems
-generally useful beyond this app, not specific to Tavily or search.
+The full protocol:
+
+```swift
+protocol DownloadableModelProvider: ModelProvider {
+    var installed: [InstalledModel] { get }
+    func download(_ repoID: String) -> AsyncThrowingStream<DownloadEvent, any Error>
+    func validate(_ repoID: String) async throws -> PreflightResult
+    func capabilityProbe(_ id: ModelID) async -> ModelCapabilityReport
+    func remove(_ id: ModelID) throws
+    var storageUsed: Int64 { get }
+    var residencyEventStream: AsyncStream<ResidencyEvent>? { get }
+}
+```
+
+`remove(_:)` deletes an *installed* model's weights — it's not usable mid-download, and there's no
+other call that is. We added a "Cancel" button to our download-progress sheet (triggered the first
+time our default summary model isn't downloaded yet) and initially implemented it as a plain
+boolean flag our own consuming loop checked between stream events. Confirmed live that this doesn't
+work: the flag only stopped *us* from waiting on the `AsyncThrowingStream`, not the actual
+background fetch, which kept running unattended and finished on its own — the very next attempt
+found the model already installed, with no download prompt at all, as if cancel had silently done
+nothing.
+
+We since switched to wrapping the consumption in a real `Task<Bool, Never>` and calling `.cancel()`
+on it, which is the idiomatic mechanism such an API is generally *expected* to cooperate with (an
+`AsyncThrowingStream` backed by a network transfer would typically tie cleanup to the consuming
+task's cancellation). But this is an assumption on our part, not a documented guarantee — nothing
+in the SDK's reference confirms `download(_:)`'s internal implementation actually aborts the
+transfer when the caller's `Task` is cancelled, versus continuing to fetch into a stream nobody is
+listening to anymore.
+
+**Suggested fix:** an explicit, documented cancel path — either a `cancelDownload(_ id: ModelID)`
+method on `DownloadableModelProvider`, or documentation confirming that cancelling the `Task`
+consuming `download(_:)`'s stream is guaranteed to abort the underlying transfer (not just stop
+local consumption of it).
+
+## Context for all three
+
+All three came from a single small app with one tool and one route. None is a "we couldn't figure
+out the API" complaint — the workarounds are small and were straightforward to write once each gap
+was clear. They're flagged because the underlying capabilities (a tool call's real arguments/
+result; "prefer no reasoning" as a preference rather than a hard requirement; actually cancelling a
+download) seem generally useful beyond this app, not specific to Tavily or search.

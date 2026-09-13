@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import LocalLMLabSDKCore
 
 @main
@@ -13,7 +14,7 @@ struct WebSearchApp: App {
         }
         Settings {
             SettingsScreen(model: model)
-                .frame(width: 560, height: 640)
+                .frame(width: 480)
         }
     }
 }
@@ -28,6 +29,13 @@ private struct SettingsScreen: View {
             tavilySection
             Divider()
             modelSection
+            Divider()
+            HStack {
+                Spacer()
+                Button("Done") { NSApplication.shared.keyWindow?.close() }
+                    .keyboardShortcut(.defaultAction)
+            }
+            .padding(16)
         }
         .sheet(isPresented: $showingTavilyReplace) {
             TavilySetupView(model: model)
