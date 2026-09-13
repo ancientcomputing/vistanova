@@ -1,17 +1,19 @@
 // AppModel — the app's one piece of real logic: connect Tavily over MCP, let the user pick any
 // registered LOCAL model (Apple on-device, or a downloaded MLX open-weight model — no cloud
 // providers; a search backend other than Tavily, e.g. Brave/Exa, is a config option for later,
-// not built yet), and run searches as topic threads that stay conversational until the model
-// itself decides the user has moved on.
+// not built yet), and run searches as topic threads.
 //
-// Conversational fine-tuning, in one paragraph: a topic thread owns one real `LanguageModelSession`
-// (via `lab.makeSession`, tools: [TavilySearchTool] — a hand-written Path B wrapper, not the
-// auto-assembled MCPTool; see TavilySearchTool.swift for why). Every `send()` while that thread is
-// open re-uses the SAME session, so the model sees prior turns and can narrow the tavily_search
-// query using that context. Before reusing it, a small classification call (a separate, disposable
-// session — never the thread's own, so classifying never pollutes its transcript) asks "is this a
-// refinement or a new topic?". A new topic drops the old session entirely and starts a fresh one
-// with no memory of it.
+// Refinement, in one paragraph: an earlier version had the model itself decide whether a new
+// query continued the current topic or started a fresh one, silently expanding an ambiguous
+// follow-up ("last ceo") using the thread's earlier turns. Confirmed live that this fails exactly
+// where it matters most — that exact query, inside a Yahoo thread, got grounded to Tim Cook
+// instead, silently, with no way to notice short of reading the tiny subtitle. So there is no
+// automatic grounding or topic classification anymore. The composer leaves each submitted query
+// sitting in the box (editable) instead of clearing it — the user edits it directly ("last ceo" →
+// "yahoo last ceo") or hits the clear button to start a genuinely new topic, and *that* explicit
+// action, not a model guess, is what decides whether the next search extends `activeThreadID` or
+// starts a new one. Every search is a fresh, stateless `LocalLMLabSession` — nothing here relies
+// on conversational memory inside the model any more.
 
 import Foundation
 import Observation
@@ -34,12 +36,6 @@ struct SearchResults {
     let pages: [WebPage]
 }
 
-@Generable
-struct TopicDecision {
-    @Guide(description: "true if the new query continues/refines the current topic, false if it switches to an unrelated new topic")
-    let isRefinement: Bool
-}
-
 @available(macOS 27, *)
 @MainActor
 @Observable
@@ -60,18 +56,10 @@ final class AppModel {
     private let tavilyURL = URL(string: "https://mcp.tavily.com/mcp/")!
     private var tavilyServerID: MCPServerID { MCPServerID(rawValue: tavilyURL.absoluteString) }
 
-    /// The live session behind the currently-open topic thread. nil whenever there's no open
-    /// thread (fresh launch, or the last turn started a new topic that hasn't run yet). The
-    /// session is the SDK's `LocalLMLabSession` wrapper, not the raw `LanguageModelSession`, so
-    /// `search(...)` can watch `.events` for whether tavily_search actually ran; `capture` reads
-    /// back the query argument that same tool call used, for display (see TavilySearchTool.swift).
-    private struct ActiveThread {
-        let id: UUID
-        let session: LocalLMLabSession
-        let capture: SearchQueryCapture
-        let supportsGuidedGeneration: Bool
-    }
-    private var activeThread: ActiveThread?
+    /// The thread the next submitted query appends to. nil means the next submission starts a
+    /// new thread — set that way by `clearForNewTopic()`, which is the ONLY thing that closes a
+    /// thread now (no model classification involved).
+    private var activeThreadID: UUID?
 
     /// Two independent things to know about a model before searching with it, both confirmed
     /// live to vary across MLX models: whether it reliably calls a tool at all (Qwen3-8B-4bit,
@@ -148,34 +136,30 @@ final class AppModel {
     func send() async {
         let query = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty, !isSearching, tavilyConnected else { return }
-        // Left visible (but not editable — see ChatView's composer) until the turn finishes,
-        // success or failure, rather than cleared immediately: the query stays legible next to
-        // the spinner instead of vanishing while the user waits.
+        // Left visible (but not editable — see ChatView's composer) after the turn finishes too,
+        // success or failure — this app no longer clears the box for you. The user edits it
+        // in place to refine, or hits the clear button to start a new topic; see this file's
+        // top comment for why that replaced model-guessed refinement.
         lastError = nil
         isSearching = true
-        defer { isSearching = false; input = "" }
-
-        var continuesActiveThread = false
-        if activeThread != nil {
-            continuesActiveThread = await classify(query: query)
-        }
+        defer { isSearching = false }
 
         do {
-            if continuesActiveThread, let thread = activeThread {
-                let (links, searchQuery) = try await search(query: query, using: thread.session, capture: thread.capture, supportsGuidedGeneration: thread.supportsGuidedGeneration)
-                appendTurn(query: query, searchQuery: searchQuery, links: links, toThreadID: thread.id)
+            let capability = await searchCapability(selectedModel)
+            guard capability.toolCalling else {
+                lastError = "This model doesn't reliably call tools, so it can't be trusted to actually search rather than answer from its own training data. Pick a different model in Settings."
+                return
+            }
+            let (session, capture) = try makeSearchSession(supportsGuidedGeneration: capability.guidedGeneration)
+            let (links, searchQuery) = try await search(query: query, using: session, capture: capture, supportsGuidedGeneration: capability.guidedGeneration)
+
+            if let threadID = activeThreadID {
+                appendTurn(query: query, searchQuery: searchQuery, links: links, toThreadID: threadID)
             } else {
-                let capability = await searchCapability(selectedModel)
-                guard capability.toolCalling else {
-                    lastError = "This model doesn't reliably call tools, so it can't be trusted to actually search rather than answer from its own training data. Pick a different model in Settings."
-                    return
-                }
-                let (session, capture) = try makeSearchSession(supportsGuidedGeneration: capability.guidedGeneration)
-                let (links, searchQuery) = try await search(query: query, using: session, capture: capture, supportsGuidedGeneration: capability.guidedGeneration)
                 let thread = TopicThread(
                     turns: [SearchTurn(query: query, searchQuery: searchQuery, links: links, timestamp: Date())],
                     createdAt: Date())
-                activeThread = ActiveThread(id: thread.id, session: session, capture: capture, supportsGuidedGeneration: capability.guidedGeneration)
+                activeThreadID = thread.id
                 threads.append(thread)
                 HistoryStore.save(threads)
             }
@@ -184,11 +168,19 @@ final class AppModel {
         }
     }
 
-    /// Ends the current topic thread early so the very next `send()` always starts fresh — used
-    /// when the model's own classification can't run (e.g. mid-turn failure) or the user wants
-    /// an explicit reset.
+    /// The explicit "new topic" signal — the composer's clear button. Nothing else closes a
+    /// thread; see this file's top comment.
+    func clearForNewTopic() {
+        input = ""
+        activeThreadID = nil
+        lastError = nil
+    }
+
+    /// Switching models mid-thread: the thread closes (a different model shouldn't silently
+    /// inherit a thread it never saw), but unlike `clearForNewTopic()` the box keeps its text —
+    /// the user didn't ask to abandon what they typed, just to answer it with a different model.
     func endActiveThread() {
-        activeThread = nil
+        activeThreadID = nil
     }
 
     /// Apple's own models (on-device, PCC) always support tool calling and `@Generable` structured
@@ -205,40 +197,16 @@ final class AppModel {
         return capability
     }
 
-    private func classify(query: String) async -> Bool {
-        guard let threadID = activeThread?.id,
-              let thread = threads.first(where: { $0.id == threadID }) else { return false }
-        let previousQueries = thread.turns.map(\.query).joined(separator: "; ")
-        do {
-            lab.models.route("classify", to: selectedModel)
-            let session = try lab.makeSession(
-                route: "classify",
-                instructions: "You judge whether a new search query continues the same topic as previous queries, or switches to something unrelated.",
-                includeMCPTools: false)
-            let prompt = """
-            Previous queries in this topic, oldest first: \(previousQueries)
-            New query: "\(query)"
-            Is the new query a refinement/continuation of the same topic, or a switch to a different topic?
-            """
-            let response = try await session.languageModelSession.respond(to: prompt, generating: TopicDecision.self)
-            return response.content.isRefinement
-        } catch {
-            // Can't classify — safest default is to treat it as a new topic rather than risk
-            // silently merging two unrelated searches into one thread.
-            return false
-        }
-    }
-
+    /// Deliberately a fresh, stateless session every call — no transcript carried over between
+    /// searches. An earlier version reused one session per topic thread so the model could see
+    /// prior turns, and separately explained the follow-up mechanic in its own instructions; the
+    /// explaining backfired (the small on-device model started reasoning out loud about its own
+    /// role instead of just searching: "I cannot fulfill this request because it involves a
+    /// misunderstanding of my role"), and the reuse itself let a wrong guess happen silently
+    /// (confirmed live: "last ceo" inside a Yahoo thread got grounded to Tim Cook). Refinement now
+    /// happens in the composer, not the model — see this file's top comment.
     private func makeSearchSession(supportsGuidedGeneration: Bool) throws -> (LocalLMLabSession, SearchQueryCapture) {
         lab.models.route("chat", to: selectedModel)
-        // Deliberately plain otherwise — an earlier version explained the follow-up/refinement
-        // mechanic in the instructions themselves, which backfired: the small on-device model
-        // started reasoning out loud about its own role and conversational obligations instead
-        // of just searching (confirmed live: a query got refused with "I cannot fulfill this
-        // request because it involves a misunderstanding of my role"). The session already
-        // carries earlier turns in its own transcript — that's the actual mechanism refinement
-        // runs on — so there's nothing to explain here; just tell it to search.
-        //
         // The output-format line only gets added when guided generation isn't available: with it,
         // `@Generable` enforces the shape directly and an extra formatting instruction is just
         // more words for a small model to misread; without it, the model has no schema at all, so

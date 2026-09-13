@@ -79,12 +79,27 @@ struct ChatView: View {
                 Text(error).font(AppFont.caption).foregroundStyle(.red)
             }
             HStack {
-                TextField("Search…", text: $model.input, axis: .vertical)
-                    .font(AppFont.body)
-                    .textFieldStyle(.roundedBorder)
-                    .lineLimit(1...4)
-                    .onSubmit { Task { await model.send() } }
-                    .disabled(!model.tavilyConnected || model.isSearching)
+                ZStack(alignment: .trailing) {
+                    TextField("Search…", text: $model.input, axis: .vertical)
+                        .font(AppFont.body)
+                        .textFieldStyle(.roundedBorder)
+                        .lineLimit(1...4)
+                        .onSubmit { Task { await model.send() } }
+                        .disabled(!model.tavilyConnected || model.isSearching)
+                    if !model.input.isEmpty && !model.isSearching {
+                        // Explicit "new topic" signal — the only thing that closes the current
+                        // thread now (see AppModel's top comment). Edit the box in place instead
+                        // to refine within the same thread.
+                        Button {
+                            model.clearForNewTopic()
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.trailing, 6)
+                    }
+                }
                 if model.isSearching {
                     ProgressView().controlSize(.small)
                 } else {
