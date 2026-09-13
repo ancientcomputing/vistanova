@@ -126,7 +126,7 @@ private struct ThreadView: View {
             Text(thread.title)
                 .font(AppFont.headline)
             ForEach(thread.turns) { turn in
-                TurnView(turn: turn, model: model)
+                TurnView(turn: turn, model: model, showsQuery: turn.id != thread.turns.first?.id)
             }
         }
         .padding(12)
@@ -138,14 +138,23 @@ private struct ThreadView: View {
 private struct TurnView: View {
     let turn: SearchTurn
     let model: AppModel
+    /// false for a thread's first turn — its query is already the thread's own bold header
+    /// immediately above, so repeating it here would be the exact duplication fixed earlier.
+    var showsQuery: Bool = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            // What was actually sent to tavily_search, not the user's literal input — that's
-            // already shown once, either as the thread's own header (first turn) or was typed a
-            // moment ago (later turns); repeating it here read as a bug, not a feature.
+            // What the user actually typed for THIS turn — the thread's own bold header only
+            // covers the first turn, so a later turn (a refinement typed into the still-open
+            // box) otherwise has no record of its own literal input anywhere.
+            if showsQuery {
+                Text(turn.query)
+                    .font(AppFont.subheadline).bold()
+            }
+            // What was actually sent to tavily_search — can legitimately differ from the above
+            // (a rewritten/expanded query), so both are worth showing rather than picking one.
             Text("Search terms: \(turn.searchQuery ?? turn.query)")
-                .font(AppFont.subheadline).italic()
+                .font(AppFont.caption).italic()
                 .foregroundStyle(.secondary)
             ForEach(turn.links) { link in
                 Link(destination: URL(string: link.url) ?? URL(string: "https://example.com")!) {
