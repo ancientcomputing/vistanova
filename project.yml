@@ -1,0 +1,59 @@
+# XcodeGen spec for the "double-click, Run" variant of WebSearch.
+#
+#   brew install xcodegen && xcodegen generate      # regenerates WebSearchApp.xcodeproj
+#
+# Same shape as locallm/examples/model-switch/project.yml: ad-hoc signed, no sandbox, for local
+# dev. No entitlements and no OAuth URL scheme needed — Tavily connects via a static API key
+# (.pat), and Remote's hosted providers auth with a plain API key too, so nothing here is
+# TCC-gated or OAuth-gated.
+name: WebSearchApp
+options:
+  bundleIdPrefix: lab.locallm.websearch
+  deploymentTarget:
+    macOS: "27.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+schemes:
+  WebSearchApp:
+    build:
+      targets:
+        WebSearchApp: all
+    run:
+      config: Debug
+packages:
+  WebSearchPackage:
+    path: .
+  Components:
+    path: locallm/Components
+targets:
+  WebSearchApp:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources/WebSearchApp
+    info:
+      path: xcodeproj/WebSearchApp-Info.plist
+      properties:
+        CFBundleDisplayName: WebSearch
+        CFBundleName: WebSearch
+        LSApplicationCategoryType: public.app-category.productivity
+        LSMinimumSystemVersion: "27.0"
+        NSHighResolutionCapable: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: lab.locallm.websearch.app
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_STYLE: Manual
+        ENABLE_APP_SANDBOX: NO
+        ENABLE_HARDENED_RUNTIME: NO
+        LD_RUNPATH_SEARCH_PATHS:
+          - "@executable_path/../Frameworks"
+    dependencies:
+      - package: Components
+        product: LocalLMLabSDKCore
+      - package: Components
+        product: LocalLMLabSDKComponents
+      - package: WebSearchPackage
+        product: LocalLMLabSDKRemote

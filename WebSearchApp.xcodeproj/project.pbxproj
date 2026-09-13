@@ -1,0 +1,381 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		04BFBA654471863CF29E1B4A /* TavilySetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D3320899709B39BF16A016A /* TavilySetupView.swift */; };
+		07CF54552EB8B17B498148A7 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BA8AB63B7B91FC82EF24894 /* AppModel.swift */; };
+		27B68959C9B2FA19B2907DCB /* Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D31F18ABA0113CE6E9D1EF1 /* Persistence.swift */; };
+		5CD9A83C9E511FB770DCC3FF /* ProviderGlue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49C26587DC1D73FBF06E92F3 /* ProviderGlue.swift */; };
+		749A4B3C3F82DDACDC090319 /* LocalLMLabSDKComponents in Frameworks */ = {isa = PBXBuildFile; productRef = 5163F13D937F329CF3721285 /* LocalLMLabSDKComponents */; };
+		7B146D00F0FEB0F5C6B995F9 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CB164DB823E856FC52EF866 /* ChatView.swift */; };
+		8785B27BF09BA4D8F38DAF58 /* LocalLMLabSDKCore in Frameworks */ = {isa = PBXBuildFile; productRef = CCC02F3B72C57BDFA62425D8 /* LocalLMLabSDKCore */; };
+		AD0508BC35B8FDF614A660CA /* LocalLMLabSDKRemote in Frameworks */ = {isa = PBXBuildFile; productRef = 99F9F5815033BB047615C32A /* LocalLMLabSDKRemote */; };
+		E4AE2FDFB5F8A105FF16EB95 /* WebSearchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDAA0FC705CA9FC99CE1F4BA /* WebSearchApp.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		1D3320899709B39BF16A016A /* TavilySetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TavilySetupView.swift; sourceTree = "<group>"; };
+		43640AB15EB5507E278CAA72 /* websearch */ = {isa = PBXFileReference; lastKnownFileType = folder; name = websearch; path = .; sourceTree = SOURCE_ROOT; };
+		49C26587DC1D73FBF06E92F3 /* ProviderGlue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderGlue.swift; sourceTree = "<group>"; };
+		4D1B84E97AA74D708906B6B5 /* WebSearchApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WebSearchApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		6BA8AB63B7B91FC82EF24894 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		8CB164DB823E856FC52EF866 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
+		9D31F18ABA0113CE6E9D1EF1 /* Persistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Persistence.swift; sourceTree = "<group>"; };
+		BDAA0FC705CA9FC99CE1F4BA /* WebSearchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebSearchApp.swift; sourceTree = "<group>"; };
+		D6852BC6D518540995926488 /* Components */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Components; path = locallm/Components; sourceTree = SOURCE_ROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		1311EC852E3245F1C3B92FF9 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8785B27BF09BA4D8F38DAF58 /* LocalLMLabSDKCore in Frameworks */,
+				749A4B3C3F82DDACDC090319 /* LocalLMLabSDKComponents in Frameworks */,
+				AD0508BC35B8FDF614A660CA /* LocalLMLabSDKRemote in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		806CD3BB42E07E36A4939A11 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				D6852BC6D518540995926488 /* Components */,
+				43640AB15EB5507E278CAA72 /* websearch */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		9A80E5583467B00B9B92BDDC = {
+			isa = PBXGroup;
+			children = (
+				806CD3BB42E07E36A4939A11 /* Packages */,
+				D32E5A440F647F6CFCCD0CD7 /* Sources */,
+				D1422E19990282169FE56112 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		9DEC322270451293F8E16512 /* WebSearchApp */ = {
+			isa = PBXGroup;
+			children = (
+				6BA8AB63B7B91FC82EF24894 /* AppModel.swift */,
+				8CB164DB823E856FC52EF866 /* ChatView.swift */,
+				9D31F18ABA0113CE6E9D1EF1 /* Persistence.swift */,
+				49C26587DC1D73FBF06E92F3 /* ProviderGlue.swift */,
+				1D3320899709B39BF16A016A /* TavilySetupView.swift */,
+				BDAA0FC705CA9FC99CE1F4BA /* WebSearchApp.swift */,
+			);
+			path = WebSearchApp;
+			sourceTree = "<group>";
+		};
+		D1422E19990282169FE56112 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				4D1B84E97AA74D708906B6B5 /* WebSearchApp.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		D32E5A440F647F6CFCCD0CD7 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				9DEC322270451293F8E16512 /* WebSearchApp */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		9879CBC83FC23EC2D46F927E /* WebSearchApp */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4F70F4D0A8F32A62196771E3 /* Build configuration list for PBXNativeTarget "WebSearchApp" */;
+			buildPhases = (
+				5E1E25690BC2D82E6ED1C419 /* Sources */,
+				1311EC852E3245F1C3B92FF9 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = WebSearchApp;
+			packageProductDependencies = (
+				CCC02F3B72C57BDFA62425D8 /* LocalLMLabSDKCore */,
+				5163F13D937F329CF3721285 /* LocalLMLabSDKComponents */,
+				99F9F5815033BB047615C32A /* LocalLMLabSDKRemote */,
+			);
+			productName = WebSearchApp;
+			productReference = 4D1B84E97AA74D708906B6B5 /* WebSearchApp.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		3AAD84C7C4E015AF6503C94F /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					9879CBC83FC23EC2D46F927E = {
+						ProvisioningStyle = Manual;
+					};
+				};
+			};
+			buildConfigurationList = CAC3B1F3B0DBFEFD83D9317D /* Build configuration list for PBXProject "WebSearchApp" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 9A80E5583467B00B9B92BDDC;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				9F5E51107C2F87ECB19F19A1 /* XCLocalSwiftPackageReference "locallm/Components" */,
+				794378ACB5D19E0557B2D505 /* XCLocalSwiftPackageReference "." */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = D1422E19990282169FE56112 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				9879CBC83FC23EC2D46F927E /* WebSearchApp */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		5E1E25690BC2D82E6ED1C419 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				07CF54552EB8B17B498148A7 /* AppModel.swift in Sources */,
+				7B146D00F0FEB0F5C6B995F9 /* ChatView.swift in Sources */,
+				27B68959C9B2FA19B2907DCB /* Persistence.swift in Sources */,
+				5CD9A83C9E511FB770DCC3FF /* ProviderGlue.swift in Sources */,
+				04BFBA654471863CF29E1B4A /* TavilySetupView.swift in Sources */,
+				E4AE2FDFB5F8A105FF16EB95 /* WebSearchApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		685EE4FDA45896C2D84F6796 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = NO;
+				INFOPLIST_FILE = "xcodeproj/WebSearchApp-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = lab.locallm.websearch.app;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		CA1F186EE137AAF8FC3F6AE5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = NO;
+				INFOPLIST_FILE = "xcodeproj/WebSearchApp-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = lab.locallm.websearch.app;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		EBF59C0D6516F2168BE736D7 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		FC09F325129B9E1B22A1157F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		4F70F4D0A8F32A62196771E3 /* Build configuration list for PBXNativeTarget "WebSearchApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				685EE4FDA45896C2D84F6796 /* Debug */,
+				CA1F186EE137AAF8FC3F6AE5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		CAC3B1F3B0DBFEFD83D9317D /* Build configuration list for PBXProject "WebSearchApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EBF59C0D6516F2168BE736D7 /* Debug */,
+				FC09F325129B9E1B22A1157F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		794378ACB5D19E0557B2D505 /* XCLocalSwiftPackageReference "." */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = .;
+		};
+		9F5E51107C2F87ECB19F19A1 /* XCLocalSwiftPackageReference "locallm/Components" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = locallm/Components;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		5163F13D937F329CF3721285 /* LocalLMLabSDKComponents */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = LocalLMLabSDKComponents;
+		};
+		99F9F5815033BB047615C32A /* LocalLMLabSDKRemote */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = LocalLMLabSDKRemote;
+		};
+		CCC02F3B72C57BDFA62425D8 /* LocalLMLabSDKCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = LocalLMLabSDKCore;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 3AAD84C7C4E015AF6503C94F /* Project object */;
+}

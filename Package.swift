@@ -2,9 +2,14 @@
 import Foundation
 import PackageDescription
 
-// WebSearch — a standalone LocalLM Lab SDK CLI, same shape as the SDK's own repo-qa example
-// (see locallm/examples/repo-qa/Package.swift): Core linked as a binary xcframework release
-// asset, no other SDK modules needed since this app only uses MCPServerManager + MCPTool.
+// Two products share this manifest: the original "WebSearch" CLI (bare `swift run`, Apple
+// on-device only) and "WebSearchApp", a SwiftUI .app built via project.yml/xcodegen (both
+// on-device and hosted providers, picked at runtime). Core + Components come from
+// locallm/Components (the SDK's own open-source Components package, which vendors Core as a
+// binary) rather than a Core binaryTarget declared here — WebSearchApp's Xcode project opens
+// this manifest and Components' manifest in one graph, and two packages declaring a target of
+// the same name is a hard SwiftPM error. Same reason examples/model-switch's own Package.swift
+// avoids it (see that file's top comment).
 
 struct SDKRelease {
     let url: String
@@ -13,14 +18,15 @@ struct SDKRelease {
 
 let defaultSDKVersion = "1.0.0-beta.4"
 
-let knownSDKReleases: [String: SDKRelease] = [
+// LocalLMLabSDKRemote — only WebSearchApp needs this (hosted providers); the CLI doesn't link it.
+let knownRemoteReleases: [String: SDKRelease] = [
     "1.0.0-beta.3": SDKRelease(
-        url: "https://github.com/ancientcomputing/locallm/releases/download/v1.0.0-beta.3/LocalLMLabSDKCore-1.0.0-beta.3.xcframework.zip",
-        checksum: "a49b8bfcde340d8b86bf106d2af2cb9d84f3839a3bc1695016f3952a3fcdfb92"
+        url: "https://github.com/ancientcomputing/locallm/releases/download/v1.0.0-beta.3/LocalLMLabSDKRemote-1.0.0-beta.3.xcframework.zip",
+        checksum: "2b1e401a606c2c34d3e086cf9a2edad9d2c9ca730a3c3840b964f88d9e2e446b"
     ),
     "1.0.0-beta.4": SDKRelease(
-        url: "https://github.com/ancientcomputing/locallm/releases/download/v1.0.0-beta.4/LocalLMLabSDKCore-1.0.0-beta.4.xcframework.zip",
-        checksum: "3ed0e79b6914e6b48b7ae27f3fdda139f71e3d60f603daf54901716c8c972cb3"
+        url: "https://github.com/ancientcomputing/locallm/releases/download/v1.0.0-beta.4/LocalLMLabSDKRemote-1.0.0-beta.4.xcframework.zip",
+        checksum: "a73a06bf04a2dd3b1a15b40770f12c0565f8cbf1a97eaa604317b09e3a860454"
     ),
 ]
 
@@ -31,27 +37,36 @@ func failManifest(_ message: String) -> Never {
 
 let requestedSDKVersion = ProcessInfo.processInfo.environment["LOCALLM_SDK_VERSION"] ?? defaultSDKVersion
 
-guard let sdkRelease = knownSDKReleases[requestedSDKVersion] else {
+guard let remoteRelease = knownRemoteReleases[requestedSDKVersion] else {
     failManifest("""
     error: Unknown LOCALLM_SDK_VERSION "\(requestedSDKVersion)".
-    Known versions: \(knownSDKReleases.keys.sorted().joined(separator: ", "))
+    Known versions: \(knownRemoteReleases.keys.sorted().joined(separator: ", "))
     """)
 }
 
 let package = Package(
     name: "WebSearch",
     platforms: [.macOS("26.0")],
+    products: [
+        // Vend Remote as a library product so WebSearchApp's Xcode project (project.yml) can
+        // depend on it by name. `swift build`/`swift run WebSearch` doesn't need this.
+        .library(name: "LocalLMLabSDKRemote", targets: ["LocalLMLabSDKRemote"])
+    ],
+    dependencies: [
+        .package(path: "locallm/Components")
+    ],
     targets: [
         .binaryTarget(
-            name: "LocalLMLabSDKCore",
-            url: sdkRelease.url,
-            checksum: sdkRelease.checksum
+            name: "LocalLMLabSDKRemote",
+            url: remoteRelease.url,
+            checksum: remoteRelease.checksum
         ),
         .executableTarget(
             name: "WebSearch",
-            dependencies: ["LocalLMLabSDKCore"],
+            dependencies: [
+                .product(name: "LocalLMLabSDKCore", package: "Components")
+            ],
             linkerSettings: [
-                // Same rpath fix repo-qa and code-buddy need for a bare executable target.
                 .unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path"])
             ]
         )
