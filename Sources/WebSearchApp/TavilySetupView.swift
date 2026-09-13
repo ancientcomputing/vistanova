@@ -9,13 +9,15 @@ struct TavilySetupView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Connect Tavily").font(.title2).bold()
+            Text("Connect Tavily").font(AppFont.title2).bold()
             Text("WebSearch uses Tavily's search API to find pages about your topic. Get a key at \(Text("app.tavily.com").underline())")
+                .font(AppFont.body)
             SecureField("tvly-…", text: $apiKey)
+                .font(AppFont.body)
                 .textFieldStyle(.roundedBorder)
                 .onSubmit(connect)
             if let error {
-                Text(error).font(.caption).foregroundStyle(.red)
+                Text(error).font(AppFont.caption).foregroundStyle(.red)
             }
             HStack {
                 Spacer()

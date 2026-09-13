@@ -43,9 +43,9 @@ private struct SettingsScreen: View {
     private var tavilySection: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Tavily").font(.headline)
+                Text("Tavily").font(AppFont.headline)
                 Text(model.tavilyConnected ? "Connected" : "Not connected")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(AppFont.caption).foregroundStyle(.secondary)
             }
             Spacer()
             if model.tavilyConfigured {

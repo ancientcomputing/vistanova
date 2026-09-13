@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		04BFBA654471863CF29E1B4A /* TavilySetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D3320899709B39BF16A016A /* TavilySetupView.swift */; };
 		07CF54552EB8B17B498148A7 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BA8AB63B7B91FC82EF24894 /* AppModel.swift */; };
+		11367C64C07D5B60113ABED2 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BCDE000D6EA451E045BB5CB /* Theme.swift */; };
 		27B68959C9B2FA19B2907DCB /* Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D31F18ABA0113CE6E9D1EF1 /* Persistence.swift */; };
 		5CD9A83C9E511FB770DCC3FF /* ProviderGlue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49C26587DC1D73FBF06E92F3 /* ProviderGlue.swift */; };
 		749A4B3C3F82DDACDC090319 /* LocalLMLabSDKComponents in Frameworks */ = {isa = PBXBuildFile; productRef = 5163F13D937F329CF3721285 /* LocalLMLabSDKComponents */; };
@@ -23,6 +24,7 @@
 		43640AB15EB5507E278CAA72 /* websearch */ = {isa = PBXFileReference; lastKnownFileType = folder; name = websearch; path = .; sourceTree = SOURCE_ROOT; };
 		49C26587DC1D73FBF06E92F3 /* ProviderGlue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderGlue.swift; sourceTree = "<group>"; };
 		4D1B84E97AA74D708906B6B5 /* WebSearchApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WebSearchApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		5BCDE000D6EA451E045BB5CB /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		6BA8AB63B7B91FC82EF24894 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		8CB164DB823E856FC52EF866 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		9D31F18ABA0113CE6E9D1EF1 /* Persistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Persistence.swift; sourceTree = "<group>"; };
@@ -70,6 +72,7 @@
 				9D31F18ABA0113CE6E9D1EF1 /* Persistence.swift */,
 				49C26587DC1D73FBF06E92F3 /* ProviderGlue.swift */,
 				1D3320899709B39BF16A016A /* TavilySetupView.swift */,
+				5BCDE000D6EA451E045BB5CB /* Theme.swift */,
 				BDAA0FC705CA9FC99CE1F4BA /* WebSearchApp.swift */,
 			);
 			path = WebSearchApp;
@@ -162,6 +165,7 @@
 				27B68959C9B2FA19B2907DCB /* Persistence.swift in Sources */,
 				5CD9A83C9E511FB770DCC3FF /* ProviderGlue.swift in Sources */,
 				04BFBA654471863CF29E1B4A /* TavilySetupView.swift in Sources */,
+				11367C64C07D5B60113ABED2 /* Theme.swift in Sources */,
 				E4AE2FDFB5F8A105FF16EB95 /* WebSearchApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -46,7 +46,7 @@ struct ChatView: View {
 
             if !model.tavilyConnected {
                 Label("Tavily not connected", systemImage: "exclamationmark.triangle")
-                    .font(.caption)
+                    .font(AppFont.caption)
                     .foregroundStyle(.orange)
             }
 
@@ -76,10 +76,11 @@ struct ChatView: View {
     private var composer: some View {
         VStack(alignment: .leading, spacing: 4) {
             if let error = model.lastError {
-                Text(error).font(.caption).foregroundStyle(.red)
+                Text(error).font(AppFont.caption).foregroundStyle(.red)
             }
             HStack {
                 TextField("Search…", text: $model.input, axis: .vertical)
+                    .font(AppFont.body)
                     .textFieldStyle(.roundedBorder)
                     .lineLimit(1...4)
                     .onSubmit { Task { await model.send() } }
@@ -107,7 +108,7 @@ private struct ThreadView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(thread.title)
-                .font(.headline)
+                .font(AppFont.headline)
             ForEach(thread.turns) { turn in
                 TurnView(turn: turn)
             }
@@ -124,15 +125,16 @@ private struct TurnView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(turn.query)
-                .font(.subheadline).bold()
+                .font(AppFont.subheadline).bold()
             ForEach(turn.links) { link in
                 Link(destination: URL(string: link.url) ?? URL(string: "https://example.com")!) {
                     VStack(alignment: .leading, spacing: 1) {
                         Text(link.title)
+                            .font(AppFont.body)
                             .underline()
                             .foregroundStyle(.blue)
                         Text(link.url)
-                            .font(.caption2)
+                            .font(AppFont.caption2)
                             .underline()
                             .foregroundStyle(.blue.opacity(0.8))
                     }

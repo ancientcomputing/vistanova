@@ -300,13 +300,25 @@ final class AppModel {
 
     private static func recoverPages(from error: Error) async -> [SearchResultLink]? {
         let description = await GenerationErrorDescription.describe(error)
+        FileHandle.standardError.write(Data("[recover] description=\(description)\n".utf8))
         guard let start = description.firstIndex(of: "{"),
               let end = description.lastIndex(of: "}"),
-              start < end else { return nil }
+              start < end else {
+            FileHandle.standardError.write(Data("[recover] no braces found\n".utf8))
+            return nil
+        }
         let json = description[start...end]
-        guard let data = json.data(using: .utf8),
-              let decoded = try? JSONDecoder().decode(RawSearchResults.self, from: data) else { return nil }
-        return decoded.pages.map { SearchResultLink(title: $0.title, url: $0.url) }
+        guard let data = json.data(using: .utf8) else {
+            FileHandle.standardError.write(Data("[recover] bad utf8\n".utf8))
+            return nil
+        }
+        do {
+            let decoded = try JSONDecoder().decode(RawSearchResults.self, from: data)
+            return decoded.pages.map { SearchResultLink(title: $0.title, url: $0.url) }
+        } catch {
+            FileHandle.standardError.write(Data("[recover] decode failed: \(error)\n".utf8))
+            return nil
+        }
     }
 
     private func appendTurn(query: String, links: [SearchResultLink], toThreadID threadID: UUID) {
