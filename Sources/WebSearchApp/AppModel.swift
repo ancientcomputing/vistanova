@@ -61,16 +61,23 @@ final class AppModel {
 
     /// The live session behind the currently-open topic thread, and which thread it belongs to.
     /// nil whenever there's no open thread (fresh launch, or the last turn started a new topic
-    /// that hasn't run yet).
-    private var activeSession: LanguageModelSession?
+    /// that hasn't run yet). Kept as the SDK's `LocalLMLabSession` wrapper, not the raw
+    /// `LanguageModelSession`, so `search(...)` can watch `.events` for whether tavily_search
+    /// actually ran — see that method's comment.
+    private var activeSession: LocalLMLabSession?
     private var activeSessionSupportsGuidedGeneration = false
     private var activeThreadID: UUID?
 
-    /// Not every MLX model supports Apple's constrained/"guided" generation (the mechanism
-    /// `@Generable` structured output relies on) — confirmed live: Qwen3-8B-4bit threw "The
-    /// selected model does not support guided generation" on every search. Cache per model since
-    /// `capabilityProbe` runs a real prompt + tool call to find out.
-    private var guidedGenerationCache: [ModelID: Bool] = [:]
+    /// Two independent things to know about a model before searching with it, both confirmed
+    /// live to vary across MLX models: whether it reliably calls a tool at all (Qwen3-8B-4bit,
+    /// Gemma, and Granite all answered "who founded Yahoo" from their own training data instead of
+    /// calling tavily_search, despite being told not to), and separately, whether it supports
+    /// Apple's constrained/"guided" generation that `@Generable` structured output relies on
+    /// (Qwen3-8B-4bit: "The selected model does not support guided generation"). Both come from
+    /// one `capabilityProbe` call (a real prompt + a trivial tool call), cached per model since
+    /// that probe itself costs real inference time.
+    private struct ModelSearchCapability { var toolCalling: Bool; var guidedGeneration: Bool }
+    private var capabilityCache: [ModelID: ModelSearchCapability] = [:]
 
     init() {
         lab = LocalLMLab(configuration: .init(providers: [SystemModelProvider(), mlxProvider]))
@@ -160,11 +167,15 @@ final class AppModel {
                 links = try await search(query: query, using: session, supportsGuidedGeneration: activeSessionSupportsGuidedGeneration)
                 appendTurn(query: query, links: links, toThreadID: threadID)
             } else {
-                let supportsGuided = await guidedGenerationSupported(selectedModel)
-                let session = try makeSearchSession(supportsGuidedGeneration: supportsGuided)
+                let capability = await searchCapability(selectedModel)
+                guard capability.toolCalling else {
+                    lastError = "This model doesn't reliably call tools, so it can't be trusted to actually search rather than answer from its own training data. Pick a different model in Settings."
+                    return
+                }
+                let session = try makeSearchSession(supportsGuidedGeneration: capability.guidedGeneration)
                 activeSession = session
-                activeSessionSupportsGuidedGeneration = supportsGuided
-                links = try await search(query: query, using: session, supportsGuidedGeneration: supportsGuided)
+                activeSessionSupportsGuidedGeneration = capability.guidedGeneration
+                links = try await search(query: query, using: session, supportsGuidedGeneration: capability.guidedGeneration)
                 let thread = TopicThread(
                     turns: [SearchTurn(query: query, links: links, timestamp: Date())],
                     createdAt: Date())
@@ -186,15 +197,18 @@ final class AppModel {
         activeThreadID = nil
     }
 
-    /// Apple's own models (on-device, PCC) always support `@Generable` structured output; an MLX
-    /// model needs a one-time real-prompt probe to find out, since not all of them do.
-    private func guidedGenerationSupported(_ id: ModelID) async -> Bool {
-        guard id.scheme == "mlx" else { return true }
-        if let cached = guidedGenerationCache[id] { return cached }
+    /// Apple's own models (on-device, PCC) always support tool calling and `@Generable` structured
+    /// output; an MLX model needs a one-time real-prompt-plus-tool-call probe to find out either,
+    /// since not all of them reliably do.
+    private func searchCapability(_ id: ModelID) async -> ModelSearchCapability {
+        guard id.scheme == "mlx" else { return ModelSearchCapability(toolCalling: true, guidedGeneration: true) }
+        if let cached = capabilityCache[id] { return cached }
         let report = await mlxProvider.capabilityProbe(id)
-        let supported = report.capabilities.contains(.guidedGeneration)
-        guidedGenerationCache[id] = supported
-        return supported
+        let capability = ModelSearchCapability(
+            toolCalling: report.capabilities.contains(.toolCalling),
+            guidedGeneration: report.capabilities.contains(.guidedGeneration))
+        capabilityCache[id] = capability
+        return capability
     }
 
     private func classify(query: String) async -> Bool {
@@ -221,7 +235,7 @@ final class AppModel {
         }
     }
 
-    private func makeSearchSession(supportsGuidedGeneration: Bool) throws -> LanguageModelSession {
+    private func makeSearchSession(supportsGuidedGeneration: Bool) throws -> LocalLMLabSession {
         lab.models.route("chat", to: selectedModel)
         // Deliberately plain otherwise — an earlier version explained the follow-up/refinement
         // mechanic in the instructions themselves, which backfired: the small on-device model
@@ -248,13 +262,45 @@ final class AppModel {
             tavily_search returned. Do not answer from your own knowledge and do not add \
             commentary beyond the requested titles and URLs.\(formatInstruction)
             """)
-        return session.languageModelSession
+        return session
     }
 
-    private func search(query: String, using session: LanguageModelSession, supportsGuidedGeneration: Bool, isRetry: Bool = false) async throws -> [SearchResultLink] {
+    /// Up to 2 full attempts, each running to completion (including cancelling its own event
+    /// watcher) before the next starts — deliberately a loop, not recursion, so two attempts
+    /// never watch `session.events` concurrently.
+    private func search(query: String, using session: LocalLMLabSession, supportsGuidedGeneration: Bool) async throws -> [SearchResultLink] {
+        var lastError: Error = SearchParseError.toolNotCalled
+        for attempt in 0..<2 {
+            do {
+                return try await attemptSearch(query: query, using: session, supportsGuidedGeneration: supportsGuidedGeneration)
+            } catch {
+                lastError = error
+                if attempt == 1 { throw error }
+            }
+        }
+        throw lastError
+    }
+
+    private func attemptSearch(query: String, using session: LocalLMLabSession, supportsGuidedGeneration: Bool) async throws -> [SearchResultLink] {
+        // Confirmed live: a model can answer a search query straight from its own training data
+        // instead of calling tavily_search at all, despite explicit instructions not to (Qwen3,
+        // Gemma, and Granite all did this for "who founded Yahoo?"). Watch the session's own
+        // event stream for the tool actually starting, rather than trusting that a
+        // plausible-looking response means it searched.
+        var toolWasCalled = false
+        let watcher = Task {
+            for await event in session.events {
+                if case .toolCallStarted(_, let name) = event, name == "tavily_search" {
+                    toolWasCalled = true
+                }
+            }
+        }
+        defer { watcher.cancel() }
+
         if supportsGuidedGeneration {
             do {
-                let response = try await session.respond(to: query, generating: SearchResults.self)
+                let response = try await session.languageModelSession.respond(to: query, generating: SearchResults.self)
+                guard toolWasCalled else { throw SearchParseError.toolNotCalled }
                 return response.content.pages.map { SearchResultLink(title: $0.title, url: $0.url) }
             } catch {
                 // Apple's on-device guardrail can intercept a turn about a public figure/name
@@ -262,36 +308,33 @@ final class AppModel {
                 // session then throws instead of returning, but the JSON survives in the error's
                 // own description (confirmed live: a "Muhammad Ali" search threw "The model
                 // declined to respond: {...5 real results...}"). Recover it rather than dead-end
-                // a turn that actually worked.
+                // a turn that actually worked. (A recovered payload implies the tool did run —
+                // those are Tavily's own real results embedded in the decline text.)
                 if let recovered = await Self.recoverPages(from: error) { return recovered }
-                // No JSON to recover — a plain-text decline. These have been non-deterministic in
-                // testing (the same query can succeed on a fresh attempt), so retry once before
-                // surfacing the error.
-                if !isRetry {
-                    return try await search(query: query, using: session, supportsGuidedGeneration: true, isRetry: true)
-                }
                 throw error
             }
         } else {
-            // No structured-output support on this model (see guidedGenerationSupported(_:)) — a
-            // plain response.content String, parsed leniently for (title, url) pairs rather than
+            // No structured-output support on this model (see searchCapability(_:)) — a plain
+            // response.content String, parsed leniently for (title, url) pairs rather than
             // relying on the model to hit an exact format every time.
-            let response = try await session.respond(to: query)
+            let response = try await session.languageModelSession.respond(to: query)
             let links = Self.parsePlainTextLinks(response.content)
-            if !links.isEmpty { return links }
-            if !isRetry {
-                return try await search(query: query, using: session, supportsGuidedGeneration: false, isRetry: true)
+            guard toolWasCalled, !links.isEmpty else {
+                throw toolWasCalled ? SearchParseError.noResultsParsed(rawText: response.content) : SearchParseError.toolNotCalled
             }
-            throw SearchParseError.noResultsParsed(rawText: response.content)
+            return links
         }
     }
 
     enum SearchParseError: LocalizedError {
         case noResultsParsed(rawText: String)
+        case toolNotCalled
         var errorDescription: String? {
             switch self {
             case .noResultsParsed(let rawText):
                 return "Couldn't find any links in the model's response: \(rawText)"
+            case .toolNotCalled:
+                return "The model answered from its own knowledge instead of searching. Try again, or pick a different model."
             }
         }
     }
