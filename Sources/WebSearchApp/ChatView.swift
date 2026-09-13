@@ -144,7 +144,7 @@ private struct TurnView: View {
             // What was actually sent to tavily_search, not the user's literal input — that's
             // already shown once, either as the thread's own header (first turn) or was typed a
             // moment ago (later turns); repeating it here read as a bug, not a feature.
-            Text(turn.searchQuery ?? turn.query)
+            Text("Search terms: \(turn.searchQuery ?? turn.query)")
                 .font(AppFont.subheadline).italic()
                 .foregroundStyle(.secondary)
             ForEach(turn.links) { link in
@@ -170,14 +170,22 @@ private struct TurnView: View {
 
     @ViewBuilder
     private var summarySection: some View {
-        if let summary = turn.summary {
-            Text(summary)
-                .font(AppFont.body)
-                .padding(.top, 4)
-        } else if model.summarizingTurnIDs.contains(turn.id) {
+        if model.summarizingTurnIDs.contains(turn.id) {
             HStack(spacing: 6) {
                 ProgressView().controlSize(.small)
                 Text("Summarizing…").font(AppFont.caption).foregroundStyle(.secondary)
+            }
+            .padding(.top, 4)
+        } else if let summary = turn.summary {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(summary)
+                    .font(AppFont.body)
+                // Redo, not just a first attempt — a bad summary (e.g. one saved before a since-
+                // fixed generation bug) otherwise has no way to be replaced.
+                Button("Regenerate") {
+                    Task { await model.summarize(turnID: turn.id) }
+                }
+                .font(AppFont.caption)
             }
             .padding(.top, 4)
         } else {
