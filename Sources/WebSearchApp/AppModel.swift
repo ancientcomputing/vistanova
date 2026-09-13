@@ -71,7 +71,7 @@ final class AppModel {
     var summarizingTurnIDs: Set<UUID> = []
     /// Non-nil while downloading `summaryModel` for the first time — drives a progress sheet.
     var pendingDownload: PendingDownload?
-    private var downloadCancelled = false
+    private var downloadTask: Task<Bool, Never>?
 
     /// nil until Tavily has been added at least once (drives the blocking setup sheet).
     var tavilyConfigured = false
@@ -479,34 +479,41 @@ final class AppModel {
     }
 
     /// Drives `pendingDownload` (a progress sheet in ChatView) while `mlxProvider.download(_:)`
-    /// runs. Returns false on cancel (`cancelPendingDownload()`, checked between stream events —
-    /// this stops OUR wait, not necessarily the underlying network fetch) or failure; true once
-    /// the model reports `.completed`.
+    /// runs, inside a real, cancellable `Task` — not just a flag this function checks itself.
+    /// Confirmed live that a flag isn't enough: it only stops US from waiting on the stream, not
+    /// the actual background fetch, which kept running and finished on its own after being
+    /// "cancelled," so the very next Summarize attempt just found the model already installed.
+    /// Real `Task` cancellation is the mechanism a streaming download API like this one is
+    /// generally built to cooperate with — still not a documented guarantee from the SDK (there's
+    /// no explicit cancel-download call), but it's the correct lever to pull, not a flag.
     private func downloadSummaryModel() async -> Bool {
         let repoID = summaryModel.rest
-        downloadCancelled = false
         pendingDownload = PendingDownload(repoID: repoID)
-        defer { pendingDownload = nil }
-        do {
-            for try await event in mlxProvider.download(repoID) {
-                if downloadCancelled { return false }
-                if case .progress(_, _, let fraction) = event {
-                    pendingDownload?.fraction = fraction
-                } else if case .completed = event {
-                    return true
+        defer { pendingDownload = nil; downloadTask = nil }
+        let task = Task<Bool, Never> { @MainActor [mlxProvider] in
+            do {
+                for try await event in mlxProvider.download(repoID) {
+                    if Task.isCancelled { return false }
+                    if case .progress(_, _, let fraction) = event {
+                        self.pendingDownload?.fraction = fraction
+                    } else if case .completed = event {
+                        return true
+                    }
                 }
+                return false
+            } catch {
+                if !Task.isCancelled {
+                    self.lastError = await GenerationErrorDescription.describe(error)
+                }
+                return false
             }
-            return false
-        } catch {
-            if !downloadCancelled {
-                lastError = await GenerationErrorDescription.describe(error)
-            }
-            return false
         }
+        downloadTask = task
+        return await task.value
     }
 
     func cancelPendingDownload() {
-        downloadCancelled = true
+        downloadTask?.cancel()
     }
 
     /// Belt-and-suspenders for models that always reason (DeepSeek-R1 and its distills):

@@ -2,3 +2,4 @@
 .swiftpm/
 locallm/
 .DS_Store
+.mlx-test-cache/
