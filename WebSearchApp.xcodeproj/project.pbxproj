@@ -16,6 +16,7 @@
 		8406E51CDB6C0D4334155D10 /* TavilySearchTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02A100E79A5D38437EFD3BFA /* TavilySearchTool.swift */; };
 		8785B27BF09BA4D8F38DAF58 /* LocalLMLabSDKCore in Frameworks */ = {isa = PBXBuildFile; productRef = CCC02F3B72C57BDFA62425D8 /* LocalLMLabSDKCore */; };
 		AD0508BC35B8FDF614A660CA /* LocalLMLabSDKInference in Frameworks */ = {isa = PBXBuildFile; productRef = 5FCA113BCD97A587A235FFBD /* LocalLMLabSDKInference */; };
+		B11F33DD3BD9D650B9A9C186 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BDE875D10E864D47498D782D /* Assets.xcassets */; };
 		E4AE2FDFB5F8A105FF16EB95 /* WebSearchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDAA0FC705CA9FC99CE1F4BA /* WebSearchApp.swift */; };
 /* End PBXBuildFile section */
 
@@ -29,6 +30,7 @@
 		8CB164DB823E856FC52EF866 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		9D31F18ABA0113CE6E9D1EF1 /* Persistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Persistence.swift; sourceTree = "<group>"; };
 		BDAA0FC705CA9FC99CE1F4BA /* WebSearchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebSearchApp.swift; sourceTree = "<group>"; };
+		BDE875D10E864D47498D782D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		D6852BC6D518540995926488 /* Components */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Components; path = locallm/Components; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
@@ -46,6 +48,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		1F2765A78772D12CB871E02D /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				BDE875D10E864D47498D782D /* Assets.xcassets */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
 		806CD3BB42E07E36A4939A11 /* Packages */ = {
 			isa = PBXGroup;
 			children = (
@@ -67,6 +77,7 @@
 		9DEC322270451293F8E16512 /* WebSearchApp */ = {
 			isa = PBXGroup;
 			children = (
+				1F2765A78772D12CB871E02D /* Resources */,
 				6BA8AB63B7B91FC82EF24894 /* AppModel.swift */,
 				8CB164DB823E856FC52EF866 /* ChatView.swift */,
 				9D31F18ABA0113CE6E9D1EF1 /* Persistence.swift */,
@@ -102,6 +113,7 @@
 			buildConfigurationList = 4F70F4D0A8F32A62196771E3 /* Build configuration list for PBXNativeTarget "WebSearchApp" */;
 			buildPhases = (
 				5E1E25690BC2D82E6ED1C419 /* Sources */,
+				7F15747FC553476ABEA9DBD8 /* Resources */,
 				1311EC852E3245F1C3B92FF9 /* Frameworks */,
 			);
 			buildRules = (
@@ -154,6 +166,17 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		7F15747FC553476ABEA9DBD8 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B11F33DD3BD9D650B9A9C186 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		5E1E25690BC2D82E6ED1C419 /* Sources */ = {

@@ -19,6 +19,7 @@ struct ChatView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            banner
             toolbar
             Divider()
             transcript
@@ -32,6 +33,14 @@ struct ChatView: View {
         .sheet(item: $model.pendingDownload) { download in
             DownloadProgressView(download: download, model: model)
         }
+    }
+
+    private var banner: some View {
+        Image("VistaNovaBanner")
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .frame(maxWidth: .infinity, maxHeight: 60)
+            .clipped()
     }
 
     // Model choice lives in Settings only now — see AppModel.searchModel/summaryModel.
