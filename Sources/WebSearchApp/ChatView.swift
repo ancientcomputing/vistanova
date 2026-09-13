@@ -39,8 +39,7 @@ struct ChatView: View {
         Image("VistaNovaBanner")
             .resizable()
             .aspectRatio(contentMode: .fit)
-            .frame(maxWidth: .infinity, maxHeight: 60)
-            .clipped()
+            .frame(maxWidth: .infinity)
     }
 
     // Model choice lives in Settings only now — see AppModel.searchModel/summaryModel.
