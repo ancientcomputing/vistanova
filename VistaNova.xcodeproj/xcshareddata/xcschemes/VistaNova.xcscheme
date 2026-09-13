@@ -15,10 +15,10 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "9879CBC83FC23EC2D46F927E"
-               BuildableName = "WebSearchApp.app"
-               BlueprintName = "WebSearchApp"
-               ReferencedContainer = "container:WebSearchApp.xcodeproj">
+               BlueprintIdentifier = "9C2145A7789F573D73BC2B6A"
+               BuildableName = "VistaNova.app"
+               BlueprintName = "VistaNova"
+               ReferencedContainer = "container:VistaNova.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -32,10 +32,10 @@
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "9879CBC83FC23EC2D46F927E"
-            BuildableName = "WebSearchApp.app"
-            BlueprintName = "WebSearchApp"
-            ReferencedContainer = "container:WebSearchApp.xcodeproj">
+            BlueprintIdentifier = "9C2145A7789F573D73BC2B6A"
+            BuildableName = "VistaNova.app"
+            BlueprintName = "VistaNova"
+            ReferencedContainer = "container:VistaNova.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
       <Testables>
@@ -55,10 +55,10 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "9879CBC83FC23EC2D46F927E"
-            BuildableName = "WebSearchApp.app"
-            BlueprintName = "WebSearchApp"
-            ReferencedContainer = "container:WebSearchApp.xcodeproj">
+            BlueprintIdentifier = "9C2145A7789F573D73BC2B6A"
+            BuildableName = "VistaNova.app"
+            BlueprintName = "VistaNova"
+            ReferencedContainer = "container:VistaNova.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
       <CommandLineArguments>
@@ -74,10 +74,10 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "9879CBC83FC23EC2D46F927E"
-            BuildableName = "WebSearchApp.app"
-            BlueprintName = "WebSearchApp"
-            ReferencedContainer = "container:WebSearchApp.xcodeproj">
+            BlueprintIdentifier = "9C2145A7789F573D73BC2B6A"
+            BuildableName = "VistaNova.app"
+            BlueprintName = "VistaNova"
+            ReferencedContainer = "container:VistaNova.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

@@ -1,24 +1,28 @@
-# WebSearch
+# VistaNova
 
-A tiny web search engine, built on the [LocalLM Lab SDK](https://github.com/ancientcomputing/locallm).
-Give it a topic, get back 5 web pages about it — and keep refining the same search
-conversationally, chat-style.
+*The new AltaVista. A brighter web ahead.*
+
+A tiny local-first search engine, built on the [LocalLM Lab SDK](https://github.com/ancientcomputing/locallm).
+Give it a topic, get back 5 web pages about it, and refine it yourself — no AI guessing at your
+intent.
 
 Two targets, sharing the same idea:
 
 - **`WebSearch`** — a `swift run` CLI. Apple's on-device model only, one search, no history.
-- **`WebSearchApp`** — a SwiftUI `.app`. Chat-style transcript of past searches (scrolls up,
-  keeps the last 100), Tavily's key in the Keychain, and a runtime model picker — Apple on-device
-  or any downloaded MLX open-weight model, both fully local. No cloud model providers by design:
-  the goal is on-device inference with online *search* (Tavily today; a user-configurable choice
-  of search backend — Brave, Exa, etc. — is planned but not built yet).
+- **`VistaNova`** — a SwiftUI `.app`. Chat-style scrolling history (last 100 topic threads),
+  Tavily's key in the Keychain (via the SDK's own MCP PAT store), and two independent local model
+  choices — a search model (tool-calling reliability matters most, so Apple on-device by default)
+  and a summary model (pure text synthesis, no tool call at all, so it defaults to a downloaded
+  MLX model instead — see below). No cloud model providers by design: the goal is on-device
+  inference with online *search* (Tavily today; a user-configurable choice of search backend —
+  Brave, Exa, etc. — is planned but not built yet).
 
-## WebSearchApp (the SwiftUI app)
+## VistaNova (the SwiftUI app)
 
 ```bash
 brew install xcodegen   # once
 xcodegen generate
-open WebSearchApp.xcodeproj    # Run
+open VistaNova.xcodeproj    # Run
 ```
 
 First launch shows a blocking "Connect Tavily" sheet — get a key at
@@ -28,17 +32,25 @@ First launch shows a blocking "Connect Tavily" sheet — get a key at
 persists the server's shape (URL, which tool is enabled) so it can reconnect next launch without
 asking again.
 
-Pick a model from the toolbar picker — Apple on-device by default; download an open-weight MLX
-model (with a live progress bar) via the gear icon → Settings, same `ModelPickerView` panel the
-SDK's `repo-qa-local`/`workspace-buddy-local` examples are built around.
+**Two model choices, in Settings only** (no picker in the main window): "Web search" (default:
+Apple on-device — reliable tool-calling matters most here) and "Summary" (default:
+`mlx-community/Qwen3-4B-4bit`, not downloaded until first use). The first time you click
+Summarize with an undownloaded summary model, a progress sheet appears; Cancel skips that one
+summary, though the SDK gives no way to actually abort the in-flight download once started (see
+[`locallm-sdk-feedback.md`](locallm-sdk-feedback.md)).
 
-**Conversational search.** Type a topic, get 5 links. Keep typing in the same box to narrow the
-same search — "just her music career," "more recent" — and the model sees the earlier turns of
-that topic when it re-runs `tavily_search`, so it can pick a better query than your literal words.
-When you type something the model judges unrelated to the current topic, it closes that thread
-and starts a fresh one with no memory of the last topic — that's the one classification call
-`AppModel.classify(query:)` makes before every turn after the first. Every topic thread (and its
-turns) is kept in the scrolling history, oldest at the top, capped at the last 100 threads.
+**Search is user-refined, not AI-refined.** Type a topic, get 5 links plus the actual query the
+model sent to `tavily_search` (shown as a subtitle — it can legitimately differ from what you
+typed). The box keeps your text after results land instead of clearing it: edit it in place to
+narrow the search ("last ceo" → "yahoo last ceo") and it stays in the same topic thread, or hit
+the clear (×) button to start a genuinely new one. An earlier version had the model itself guess
+whether a new query continued the topic, silently expanding ambiguous follow-ups using thread
+context — confirmed live that this fails exactly where it matters ("last ceo" inside a Yahoo
+thread got grounded to Tim Cook), so there's no automatic grounding or classification anymore.
+
+**Summarize.** Below a turn's links, a "Summarize" button asks the model for a 2-3 sentence
+paragraph over the snippets `tavily_search` already returned (no extra tool call — Tavily returns
+a snippet per result that the search step already captures).
 
 Links are plain `Link`s — clicking one opens your default browser.
 
@@ -63,39 +75,40 @@ the SDK's own [`repo-qa`](locallm/examples/repo-qa) example.
 ## How it works
 
 - Both targets connect to Tavily's MCP server (`https://mcp.tavily.com/mcp/`) with `authType:
-  .pat` — a static Bearer API key, no OAuth round-trip. Only `tavily_search` is enabled; Tavily
-  also offers `tavily_extract`/`crawl`/`map`, but those assume a starting URL this task never has,
-  and less schema means a more reliable tool call from a small model.
-- The system prompt pins `tavily_search`'s own arguments (`max_results: 5`, `search_depth:
-  "basic"`) rather than leaving the model to guess.
-- Output is structured (`@Generable SearchResults`), not prose — the result is always exactly 5
-  `(title, url)` pairs, never something the caller has to re-parse for links.
-- `WebSearchApp` drives everything through `LocalLMLab` (`LocalLMLabSDKCore` +
-  `LocalLMLabSDKComponents` + `LocalLMLabSDKInference`): `lab.mcp` is the same `MCPServerManager`
-  the CLI uses directly, `lab.models` handles routing between `SystemModelProvider` (Apple
-  on-device) and `MLXModelProvider` (downloaded open-weight models), and `lab.makeSession`
-  assembles a session's tools from whichever MCP tools are enabled — no manual `MCPTool` wiring
-  needed once `tavily_search` is enabled.
-- A topic thread owns one real `LanguageModelSession`. Refining a search reuses it (the model
-  sees prior turns); switching topics discards it for a fresh one. The classification call that
-  tells them apart runs on its own disposable session so it never pollutes the thread's own
-  transcript.
+  .pat` — a static Bearer API key, no OAuth round-trip.
+- `VistaNova` uses a hand-written `TavilySearchTool` (Path B), not the SDK's auto-assembled
+  `MCPTool` — this pins `max_results`/`search_depth` in Swift (the model only ever chooses
+  `query`) and lets an actor (`SearchQueryCapture`) record the query argument actually used, which
+  `session.events` alone can't expose (see `locallm-sdk-feedback.md`).
+- Output is structured (`@Generable SearchResults`) when the model supports guided generation;
+  otherwise a plain-text fallback parses `(title, url)` pairs out of unstructured output —
+  verified via `searchCapability(_:)`, since not every MLX model supports either guided
+  generation or reliable tool-calling.
+- `search(...)` watches `session.events` for `.toolCallStarted("tavily_search")` and rejects a
+  turn where the model answered from its own training data instead of calling the tool — confirmed
+  live that several MLX models will do exactly that despite explicit instructions not to.
 - Apple's on-device guardrail can intercept a turn about a real person/sensitive topic even after
-  producing a fully valid result — `AppModel.search` recovers the embedded JSON when there's
-  something to recover (strict decode, then a lenient regex fallback for cases where the decline
-  path drops quote characters), retries once on a bare text decline, and otherwise surfaces the
-  error as-is. A downloaded MLX model in the picker sidesteps this guardrail entirely, since it's
-  Apple's own safety layer, not something in this app's prompt.
+  producing a fully valid result; `search(...)` recovers the embedded payload when there's
+  something to recover (strict JSON decode, then a lenient regex fallback for cases where the
+  decline path drops quote characters) rather than surfacing a dead end for a turn that actually
+  worked.
+- `VistaNova` drives everything through `LocalLMLab` (`LocalLMLabSDKCore` + `LocalLMLabSDKInference`):
+  `lab.mcp` is the same `MCPServerManager` the CLI uses directly, `lab.models` handles routing
+  between `SystemModelProvider` and `MLXModelProvider`, and both model choices persist through the
+  SDK's own `lab.snapshot()`/`lab.restore(from:)`, not a hand-rolled setting.
 
 ## Repo layout
 
 - `Package.swift` — CLI target (`WebSearch`) + the `LocalLMLabSDKInference` (MLX) binary the app
   needs.
 - `Sources/WebSearch/` — the CLI.
-- `Sources/WebSearchApp/`, `project.yml`, `WebSearchApp.xcodeproj/`, `xcodeproj/` — the SwiftUI
-  app (generated via `xcodegen`; regenerate after editing `project.yml`, not the `.xcodeproj`
+- `Sources/VistaNova/`, `project.yml`, `VistaNova.xcodeproj/`, `xcodeproj/` — the SwiftUI app
+  (generated via `xcodegen`; regenerate after editing `project.yml`, not the `.xcodeproj`
   directly).
+- `locallm-sdk-feedback.md` — gaps in the LocalLM Lab SDK found while building this app (tool-call
+  events carrying no arguments/result, `effort: .off` hard-throwing for always-reasoning models,
+  no way to cancel an in-progress MLX download).
 - `locallm/` — a local clone of the SDK repo (docs, examples, `locallm/Components` — the
-  Components package the app depends on — and the Claude Code skill under
-  `locallm/skills/locallmlab-swift-app/`), gitignored here since it's a separate repo kept only
-  as a local reference.
+  Components package the app used to depend on for `ModelPickerView`, no longer linked — and the
+  Claude Code skill under `locallm/skills/locallmlab-swift-app/`), gitignored here since it's a
+  separate repo kept only as a local reference.

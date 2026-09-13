@@ -1,23 +1,23 @@
-# XcodeGen spec for the "double-click, Run" variant of WebSearch.
+# XcodeGen spec for the "double-click, Run" variant of VistaNova.
 #
-#   brew install xcodegen && xcodegen generate      # regenerates WebSearchApp.xcodeproj
+#   brew install xcodegen && xcodegen generate      # regenerates VistaNova.xcodeproj
 #
 # Same shape as locallm/examples/repo-qa-local/model-switch project.yml: ad-hoc signed, no
 # sandbox, for local dev. No entitlements and no OAuth URL scheme needed — Tavily connects via a
 # static API key (.pat), and every model here (Apple on-device + downloadable MLX) runs with no
 # cloud auth at all, so nothing here is TCC-gated or OAuth-gated.
-name: WebSearchApp
+name: VistaNova
 options:
-  bundleIdPrefix: lab.locallm.websearch
+  bundleIdPrefix: lab.locallm.vistanova
   deploymentTarget:
     macOS: "27.0"
   createIntermediateGroups: true
   groupSortPosition: top
 schemes:
-  WebSearchApp:
+  VistaNova:
     build:
       targets:
-        WebSearchApp: all
+        VistaNova: all
     run:
       config: Debug
 packages:
@@ -26,22 +26,22 @@ packages:
   Components:
     path: locallm/Components
 targets:
-  WebSearchApp:
+  VistaNova:
     type: application
     platform: macOS
     sources:
-      - path: Sources/WebSearchApp
+      - path: Sources/VistaNova
     info:
-      path: xcodeproj/WebSearchApp-Info.plist
+      path: xcodeproj/VistaNova-Info.plist
       properties:
-        CFBundleDisplayName: WebSearch
-        CFBundleName: WebSearch
+        CFBundleDisplayName: VistaNova
+        CFBundleName: VistaNova
         LSApplicationCategoryType: public.app-category.productivity
         LSMinimumSystemVersion: "27.0"
         NSHighResolutionCapable: true
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: lab.locallm.websearch.app
+        PRODUCT_BUNDLE_IDENTIFIER: lab.locallm.vistanova.app
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
         CODE_SIGN_IDENTITY: "-"
@@ -53,7 +53,5 @@ targets:
     dependencies:
       - package: Components
         product: LocalLMLabSDKCore
-      - package: Components
-        product: LocalLMLabSDKComponents
       - package: WebSearchPackage
         product: LocalLMLabSDKInference

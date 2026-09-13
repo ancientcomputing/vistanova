@@ -4,11 +4,11 @@ import LocalLMLabSDKCore
 
 @main
 @available(macOS 27, *)
-struct WebSearchApp: App {
+struct VistaNovaApp: App {
     @State private var model = AppModel()
 
     var body: some Scene {
-        WindowGroup("WebSearch") {
+        WindowGroup("VistaNova") {
             ChatView(model: model)
                 .frame(minWidth: 480, minHeight: 480)
         }
