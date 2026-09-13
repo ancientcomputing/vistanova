@@ -222,7 +222,7 @@ final class AppModel {
             """
         let capture = SearchQueryCapture()
         let tool = TavilySearchTool(manager: lab.mcp, serverID: tavilyServerID, capture: capture)
-        let session = try lab.makeSession(
+        let session = try makeSessionSuppressingThinking(
             route: "chat",
             tools: [tool],
             instructions: """
@@ -232,6 +232,19 @@ final class AppModel {
             """,
             includeMCPTools: false)
         return (session, capture)
+    }
+
+    /// `effort: .off` is what actually suppresses a Qwen3-family model's `<think>…</think>` block
+    /// (confirmed live: it was leaking straight into the Summarize output) — a model that always
+    /// reasons instead (DeepSeek-R1 and its distills) throws `unsupportedCapability` when asked
+    /// for it rather than ignoring it, so fall back to no effort option for those rather than
+    /// failing the whole call over a cosmetic ask.
+    private func makeSessionSuppressingThinking(route: RouteName, tools: [any Tool] = [], instructions: String, includeMCPTools: Bool) throws -> LocalLMLabSession {
+        do {
+            return try lab.makeSession(route: route, tools: tools, instructions: instructions, includeMCPTools: includeMCPTools, options: .init(effort: .off))
+        } catch {
+            return try lab.makeSession(route: route, tools: tools, instructions: instructions, includeMCPTools: includeMCPTools)
+        }
     }
 
     /// Up to 2 full attempts, each running to completion (including cancelling its own event
@@ -391,17 +404,26 @@ final class AppModel {
 
         do {
             lab.models.route("chat", to: selectedModel)
-            let session = try lab.makeSession(
+            let session = try makeSessionSuppressingThinking(
                 route: "chat",
                 instructions: "Summarize the given web search results in 2-3 sentences, as one plain paragraph. No headers, no list, no commentary about the sources themselves.",
                 includeMCPTools: false)
             let response = try await session.languageModelSession.respond(
                 to: "Search results for \"\(turn.searchQuery ?? turn.query)\":\n\(sources)")
-            threads[threadIdx].turns[turnIdx].summary = response.content
+            threads[threadIdx].turns[turnIdx].summary = Self.stripThinkingBlock(response.content)
             HistoryStore.save(threads)
         } catch {
             lastError = await GenerationErrorDescription.describe(error)
         }
+    }
+
+    /// Belt-and-suspenders for models that always reason (DeepSeek-R1 and its distills):
+    /// `effort: .off` can't suppress their `<think>` block at all — `makeSessionSuppressingThinking`
+    /// falls back to no effort option for those rather than failing, which means the tag can still
+    /// reach us. Strip it from the visible text rather than showing the model's internal monologue.
+    private static func stripThinkingBlock(_ text: String) -> String {
+        guard let range = text.range(of: "</think>") else { return text }
+        return String(text[range.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     // MARK: - Persistence
