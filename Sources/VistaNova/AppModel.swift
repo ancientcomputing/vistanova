@@ -56,9 +56,9 @@ final class AppModel {
     let lab: LocalLMLab
     private let mlxProvider = MLXModelProvider()
 
-    /// A/B: the Netscape-era "Classic" chrome vs. the default look — purely cosmetic, so a plain
+    /// A/B: the Netscape-era "Classic" chrome vs. the Modern look — purely cosmetic, so a plain
     /// UserDefaults toggle is enough (no need for the SDK's model-state snapshot machinery here).
-    /// Classic is the out-of-box default (registered below); switching to Default in Settings
+    /// Classic is the out-of-box default (registered below); switching to Modern in Settings
     /// persists that choice same as any other value.
     var isClassicTheme: Bool {
         didSet { UserDefaults.standard.set(isClassicTheme, forKey: "isClassicTheme") }

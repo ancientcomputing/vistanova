@@ -14,7 +14,7 @@ enum AppFont {
     static let searchBox = Font.system(size: 20)
 }
 
-/// "Classic" — a Netscape Navigator-era A/B alternative to the app's default look: beveled 3D
+/// "Classic" — a Netscape Navigator-era A/B alternative to the app's Modern look: beveled 3D
 /// chrome, a gray toolbar, a punchier accent, on the same layout. Toggled in Settings
 /// (`AppModel.isClassicTheme`), never forced — this is a look, not a replacement.
 enum ClassicTheme {

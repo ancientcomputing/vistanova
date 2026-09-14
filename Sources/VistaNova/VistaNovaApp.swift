@@ -96,13 +96,13 @@ private struct SettingsScreen: View {
         .padding(16)
     }
 
-    // A/B toggle — Netscape-era "Classic" chrome vs. the default look. Same layout either way;
+    // A/B toggle — Netscape-era "Classic" chrome vs. the Modern look. Same layout either way;
     // see ClassicTheme in Theme.swift for the actual styling.
     private var appearanceSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Appearance").font(AppFont.headline)
             Picker("", selection: $model.isClassicTheme) {
-                Text("Default").tag(false)
+                Text("Modern").tag(false)
                 Text("Classic").tag(true)
             }
             .pickerStyle(.segmented)
