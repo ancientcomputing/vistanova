@@ -58,6 +58,8 @@ final class AppModel {
 
     /// A/B: the Netscape-era "Classic" chrome vs. the default look — purely cosmetic, so a plain
     /// UserDefaults toggle is enough (no need for the SDK's model-state snapshot machinery here).
+    /// Classic is the out-of-box default (registered below); switching to Default in Settings
+    /// persists that choice same as any other value.
     var isClassicTheme: Bool {
         didSet { UserDefaults.standard.set(isClassicTheme, forKey: "isClassicTheme") }
     }
@@ -103,6 +105,7 @@ final class AppModel {
     private var capabilityCache: [ModelID: ModelSearchCapability] = [:]
 
     init() {
+        UserDefaults.standard.register(defaults: ["isClassicTheme": true])
         isClassicTheme = UserDefaults.standard.bool(forKey: "isClassicTheme")
         lab = LocalLMLab(configuration: .init(providers: [SystemModelProvider(), mlxProvider]))
         // The SDK's own persistence for exactly this (route map + residency + installed
