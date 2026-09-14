@@ -28,7 +28,7 @@ open VistaNova.xcodeproj    # Run
 **Building a signed, notarized release DMG** (to attach to a GitHub Release):
 
 ```bash
-APP_IDENTITY="Developer ID Application: Your Name (TEAMID)" \
+VERSION=1.0.0 APP_IDENTITY="Developer ID Application: Your Name (TEAMID)" \
 TEAM_ID=TEAMID \
 KEYCHAIN_PROFILE=<notarytool-profile-name> \
   packaging/build-and-sign.sh
