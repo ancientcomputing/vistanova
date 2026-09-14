@@ -2,7 +2,7 @@
 
 *The new AltaVista. A brighter web ahead.*
 
-A tiny local-first search engine, built on the [LocalLM Lab SDK](https://github.com/ancientcomputing/locallm).
+A tiny local-first search engine, built on the [LocalLM Lab SDK](https://github.com/ancientcomputing/locallm/tree/1.0.0-beta).
 Give it a topic, get back 5 web pages about it, and refine it yourself — no AI guessing at your
 intent.
 
