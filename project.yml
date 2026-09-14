@@ -23,8 +23,6 @@ schemes:
 packages:
   WebSearchPackage:
     path: .
-  Components:
-    path: locallm/Components
 targets:
   VistaNova:
     type: application
@@ -51,7 +49,7 @@ targets:
         LD_RUNPATH_SEARCH_PATHS:
           - "@executable_path/../Frameworks"
     dependencies:
-      - package: Components
+      - package: WebSearchPackage
         product: LocalLMLabSDKCore
       - package: WebSearchPackage
         product: LocalLMLabSDKInference

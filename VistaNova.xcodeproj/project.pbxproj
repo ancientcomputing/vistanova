@@ -26,7 +26,6 @@
 		57E6F5F3EC447C8BEC451E3B /* websearch */ = {isa = PBXFileReference; lastKnownFileType = folder; name = websearch; path = .; sourceTree = SOURCE_ROOT; };
 		7AC6D8330A0B18EA11513E58 /* VistaNovaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VistaNovaApp.swift; sourceTree = "<group>"; };
 		80617A19EA95A5A043AA8C03 /* TavilySearchTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TavilySearchTool.swift; sourceTree = "<group>"; };
-		971A6D63FED5F270FF7BEBD4 /* Components */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Components; path = locallm/Components; sourceTree = SOURCE_ROOT; };
 		9A63894EF84DDCA99807D875 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		BB88CF08995D123244AD1815 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		CF68ABDA92F0849C28754B2D /* TavilySetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TavilySetupView.swift; sourceTree = "<group>"; };
@@ -57,7 +56,6 @@
 		3C0FE9558CA9D74BFF414FCD /* Packages */ = {
 			isa = PBXGroup;
 			children = (
-				971A6D63FED5F270FF7BEBD4 /* Components */,
 				57E6F5F3EC447C8BEC451E3B /* websearch */,
 			);
 			name = Packages;
@@ -151,7 +149,6 @@
 			mainGroup = 96051C361BB45C0F4BA4E388;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				7E6E3067BA1CE6E6469F3370 /* XCLocalSwiftPackageReference "locallm/Components" */,
 				B293E4C94CD40E4054DD1899 /* XCLocalSwiftPackageReference "." */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -376,10 +373,6 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		7E6E3067BA1CE6E6469F3370 /* XCLocalSwiftPackageReference "locallm/Components" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = locallm/Components;
-		};
 		B293E4C94CD40E4054DD1899 /* XCLocalSwiftPackageReference "." */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = .;
