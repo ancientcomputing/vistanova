@@ -36,8 +36,7 @@ asking again.
 Apple on-device — reliable tool-calling matters most here) and "Summary" (default:
 `mlx-community/Qwen3-4B-4bit`, not downloaded until first use). The first time you click
 Summarize with an undownloaded summary model, a progress sheet appears; Cancel skips that one
-summary, though the SDK gives no way to actually abort the in-flight download once started (see
-[`locallm-sdk-feedback.md`](locallm-sdk-feedback.md)).
+summary, though the current (1.0.0-beta.4) SDK gives no way to actually abort the in-flight download once started.
 
 **Search is user-refined, not AI-refined.** Type a topic, get 5 links plus the actual query the
 model sent to `tavily_search` (shown as a subtitle — it can legitimately differ from what you
@@ -105,10 +104,3 @@ the SDK's own [`repo-qa`](locallm/examples/repo-qa) example.
 - `Sources/VistaNova/`, `project.yml`, `VistaNova.xcodeproj/`, `xcodeproj/` — the SwiftUI app
   (generated via `xcodegen`; regenerate after editing `project.yml`, not the `.xcodeproj`
   directly).
-- `locallm-sdk-feedback.md` — gaps in the LocalLM Lab SDK found while building this app (tool-call
-  events carrying no arguments/result, `effort: .off` hard-throwing for always-reasoning models,
-  no way to cancel an in-progress MLX download).
-- `locallm/` — a local clone of the SDK repo (docs, examples, `locallm/Components` — the
-  Components package the app used to depend on for `ModelPickerView`, no longer linked — and the
-  Claude Code skill under `locallm/skills/locallmlab-swift-app/`), gitignored here since it's a
-  separate repo kept only as a local reference.
