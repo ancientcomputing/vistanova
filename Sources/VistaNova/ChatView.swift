@@ -26,6 +26,7 @@ struct ChatView: View {
             Divider()
             SearchBox(model: model)
         }
+        .background(model.isClassicTheme ? ClassicTheme.chrome : Color.clear)
         .sheet(isPresented: .constant(!model.tavilyConfigured)) {
             TavilySetupView(model: model)
                 .interactiveDismissDisabled()
@@ -55,6 +56,7 @@ struct ChatView: View {
             SettingsLink { Label("Settings", systemImage: "gearshape") }
         }
         .padding(10)
+        .background(model.isClassicTheme ? ClassicTheme.chrome : Color.clear)
     }
 
     private var transcript: some View {
@@ -72,8 +74,26 @@ struct ChatView: View {
                 withAnimation { proxy.scrollTo("bottom", anchor: .bottom) }
             }
         }
+        // "Classic" gives the page area its own white background — Navigator's chrome was gray,
+        // the page itself was white — distinct from the gray toolbar/search box around it.
+        .background(model.isClassicTheme ? Color.white : Color.clear)
     }
 
+}
+
+/// The search field's own container — sunken bevel in Classic, soft rounded fill by default.
+@available(macOS 27, *)
+private struct SearchFieldContainer: ViewModifier {
+    let isClassic: Bool
+    func body(content: Content) -> some View {
+        if isClassic {
+            content.classicSunken(cornerRadius: 3)
+        } else {
+            content
+                .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 14))
+                .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(.separator))
+        }
+    }
 }
 
 /// The app's primary control, first-class rather than an inline computed property — a bigger,
@@ -114,13 +134,22 @@ private struct SearchBox: View {
                         .padding(.trailing, 14)
                     }
                 }
-                .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(.separator))
+                .modifier(SearchFieldContainer(isClassic: model.isClassicTheme))
 
                 if model.isSearching {
                     ProgressView()
                         .controlSize(.regular)
                         .frame(width: 48, height: 48)
+                } else if model.isClassicTheme {
+                    Button {
+                        Task { await model.send() }
+                    } label: {
+                        Image(systemName: "paperplane.fill")
+                            .font(.system(size: 18))
+                            .foregroundStyle(ClassicTheme.accent)
+                    }
+                    .buttonStyle(ClassicTheme.RaisedBevel())
+                    .disabled(model.input.trimmingCharacters(in: .whitespaces).isEmpty || !model.tavilyConnected)
                 } else {
                     Button {
                         Task { await model.send() }
@@ -152,7 +181,13 @@ private struct ThreadView: View {
             }
         }
         .padding(12)
-        .background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 10))
+        .background {
+            if model.isClassicTheme {
+                Color.white.overlay(Rectangle().strokeBorder(ClassicTheme.chromeDark, lineWidth: 1))
+            } else {
+                RoundedRectangle(cornerRadius: 10).fill(.quaternary.opacity(0.3))
+            }
+        }
     }
 }
 
@@ -184,11 +219,11 @@ private struct TurnView: View {
                         Text(link.title)
                             .font(AppFont.body)
                             .underline()
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(model.isClassicTheme ? ClassicTheme.link : .blue)
                         Text(link.url)
                             .font(AppFont.caption2)
                             .underline()
-                            .foregroundStyle(.blue.opacity(0.8))
+                            .foregroundStyle(model.isClassicTheme ? ClassicTheme.link.opacity(0.8) : .blue.opacity(0.8))
                     }
                 }
                 .buttonStyle(.plain)

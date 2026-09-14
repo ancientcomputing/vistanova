@@ -30,6 +30,8 @@ private struct SettingsScreen: View {
             Divider()
             modelSection
             Divider()
+            appearanceSection
+            Divider()
             HStack {
                 Spacer()
                 Button("Done") { NSApplication.shared.keyWindow?.close() }
@@ -65,6 +67,21 @@ private struct SettingsScreen: View {
                     Text(label(for: id)).tag(id)
                 }
             }
+        }
+        .padding(16)
+    }
+
+    // A/B toggle — Netscape-era "Classic" chrome vs. the default look. Same layout either way;
+    // see ClassicTheme in Theme.swift for the actual styling.
+    private var appearanceSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Appearance").font(AppFont.headline)
+            Picker("", selection: $model.isClassicTheme) {
+                Text("Default").tag(false)
+                Text("Classic").tag(true)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
         }
         .padding(16)
     }

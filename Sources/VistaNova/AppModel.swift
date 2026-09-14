@@ -56,6 +56,12 @@ final class AppModel {
     let lab: LocalLMLab
     private let mlxProvider = MLXModelProvider()
 
+    /// A/B: the Netscape-era "Classic" chrome vs. the default look — purely cosmetic, so a plain
+    /// UserDefaults toggle is enough (no need for the SDK's model-state snapshot machinery here).
+    var isClassicTheme: Bool {
+        didSet { UserDefaults.standard.set(isClassicTheme, forKey: "isClassicTheme") }
+    }
+
     /// Two independent model choices, not one — search needs reliable tool-calling above all
     /// else, while summarization is pure text synthesis with none of that risk, so it's the one
     /// place a different (and possibly less tool-reliable) model is worth defaulting to.
@@ -97,6 +103,7 @@ final class AppModel {
     private var capabilityCache: [ModelID: ModelSearchCapability] = [:]
 
     init() {
+        isClassicTheme = UserDefaults.standard.bool(forKey: "isClassicTheme")
         lab = LocalLMLab(configuration: .init(providers: [SystemModelProvider(), mlxProvider]))
         // The SDK's own persistence for exactly this (route map + residency + installed
         // records) — restore(from:) before reading the "search"/"summary" routes back, rather
