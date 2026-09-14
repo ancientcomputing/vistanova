@@ -23,6 +23,7 @@ struct VistaNovaApp: App {
 private struct SettingsScreen: View {
     @Bindable var model: AppModel
     @State private var showingTavilyReplace = false
+    @State private var showingResetConfirmation = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -31,6 +32,8 @@ private struct SettingsScreen: View {
             modelSection
             Divider()
             appearanceSection
+            Divider()
+            historySection
             Divider()
             HStack {
                 Spacer()
@@ -42,6 +45,28 @@ private struct SettingsScreen: View {
         .sheet(isPresented: $showingTavilyReplace) {
             TavilySetupView(model: model)
         }
+        .alert("Reset all search history?", isPresented: $showingResetConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Reset", role: .destructive) { model.resetHistory() }
+        } message: {
+            Text("This removes every saved topic thread, search, and summary. It can't be undone.")
+        }
+    }
+
+    // Scoped deliberately to search history only — Tavily's connection, model choices, and
+    // appearance are separate settings a user asking to clear "history" didn't ask to touch.
+    private var historySection: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("History").font(AppFont.headline)
+                Text("\(model.threads.count) topic thread(s) saved")
+                    .font(AppFont.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button("Reset…", role: .destructive) { showingResetConfirmation = true }
+                .disabled(model.threads.isEmpty)
+        }
+        .padding(16)
     }
 
     // Plain dropdowns, not Components' ModelPickerView — that view's own "Downloaded models"

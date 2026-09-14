@@ -248,6 +248,15 @@ final class AppModel {
         activeThreadID = nil
     }
 
+    /// Settings' "Reset History" — irreversible, so the button itself should confirm before
+    /// calling this. Only the search history; Tavily's connection, model choices, and appearance
+    /// are separate settings the user didn't ask this to touch.
+    func resetHistory() {
+        threads = []
+        activeThreadID = nil
+        HistoryStore.save(threads)
+    }
+
     /// Apple's own models (on-device, PCC) always support tool calling and `@Generable` structured
     /// output; an MLX model needs a one-time real-prompt-plus-tool-call probe to find out either,
     /// since not all of them reliably do.
