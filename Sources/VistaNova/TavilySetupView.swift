@@ -3,6 +3,7 @@ import SwiftUI
 @available(macOS 27, *)
 struct TavilySetupView: View {
     @Bindable var model: AppModel
+    @Environment(\.dismiss) private var dismiss
     @State private var apiKey = ""
     @State private var isConnecting = false
     @State private var error: String?
@@ -20,6 +21,10 @@ struct TavilySetupView: View {
                 Text(error).font(AppFont.caption).foregroundStyle(.red)
             }
             HStack {
+                // Skippable — search just stays disabled (see ChatView's composer) until the
+                // user connects Tavily, whether that's right now or later via Settings. Nothing
+                // should ever force this dialog open with no way out.
+                Button("Cancel") { dismiss() }
                 Spacer()
                 if isConnecting {
                     ProgressView().controlSize(.small)

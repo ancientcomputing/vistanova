@@ -15,7 +15,19 @@ private extension View {
 @available(macOS 27, *)
 struct ChatView: View {
     @Bindable var model: AppModel
-    @State private var showingTavilySetup = false
+    /// The Tavily setup sheet must always be dismissable — confirmed live: a `.constant(true)`
+    /// binding (the earlier version) can never be set back to false, so Cancel had nothing to
+    /// do and the dialog was stuck up. This tracks "the user dismissed it this session" so
+    /// cancelling doesn't just make it reappear on the same launch; search stays disabled until
+    /// Tavily connects, whether that's now or later via Settings (see SearchBox).
+    @State private var tavilySetupDismissedForSession = false
+
+    private var showingTavilySetup: Binding<Bool> {
+        Binding(
+            get: { !model.tavilyConfigured && !tavilySetupDismissedForSession },
+            set: { isPresented in if !isPresented { tavilySetupDismissedForSession = true } }
+        )
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -27,9 +39,8 @@ struct ChatView: View {
             SearchBox(model: model)
         }
         .background(model.isClassicTheme ? ClassicTheme.chrome : Color.clear)
-        .sheet(isPresented: .constant(!model.tavilyConfigured)) {
+        .sheet(isPresented: showingTavilySetup) {
             TavilySetupView(model: model)
-                .interactiveDismissDisabled()
         }
         .sheet(item: $model.pendingDownload) { download in
             DownloadProgressView(download: download, model: model)
