@@ -25,6 +25,20 @@ xcodegen generate
 open VistaNova.xcodeproj    # Run
 ```
 
+**Building a signed, notarized release DMG** (to attach to a GitHub Release):
+
+```bash
+APP_IDENTITY="Developer ID Application: Your Name (TEAMID)" \
+TEAM_ID=TEAMID \
+KEYCHAIN_PROFILE=<notarytool-profile-name> \
+  packaging/build-and-sign.sh
+```
+
+Produces `dist/VistaNova-<version>.dmg`, signed, notarized, and stapled. See
+[`packaging/build-and-sign.sh`](packaging/build-and-sign.sh)'s header comment for one-time
+notarytool credential setup. Run it with no env vars for an ad-hoc local build (skips
+notarization; the app only runs on the Mac that built it).
+
 First launch shows a blocking "Connect Tavily" sheet — get a key at
 [app.tavily.com](https://app.tavily.com) (`tvly-...`) and paste it in. It's stored via
 `MCPServerManager`'s own Keychain-backed PAT store (see

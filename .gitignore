@@ -3,3 +3,6 @@
 locallm/
 .DS_Store
 .mlx-test-cache/
+/build/
+/dist/
+xcuserdata/
