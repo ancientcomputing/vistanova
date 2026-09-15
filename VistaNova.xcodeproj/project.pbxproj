@@ -20,10 +20,10 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		038449EBD9805A323AB4F496 /* vistanova */ = {isa = PBXFileReference; lastKnownFileType = folder; name = vistanova; path = .; sourceTree = SOURCE_ROOT; };
 		4155A116DD7A456AF3B955DE /* VistaNova.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VistaNova.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		4960BC7A7FF8173F7A09663B /* Persistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Persistence.swift; sourceTree = "<group>"; };
 		4E3B5E30D4E793AF9A76B145 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
-		57E6F5F3EC447C8BEC451E3B /* websearch */ = {isa = PBXFileReference; lastKnownFileType = folder; name = websearch; path = .; sourceTree = SOURCE_ROOT; };
 		7AC6D8330A0B18EA11513E58 /* VistaNovaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VistaNovaApp.swift; sourceTree = "<group>"; };
 		80617A19EA95A5A043AA8C03 /* TavilySearchTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TavilySearchTool.swift; sourceTree = "<group>"; };
 		9A63894EF84DDCA99807D875 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
@@ -56,7 +56,7 @@
 		3C0FE9558CA9D74BFF414FCD /* Packages */ = {
 			isa = PBXGroup;
 			children = (
-				57E6F5F3EC447C8BEC451E3B /* websearch */,
+				038449EBD9805A323AB4F496 /* vistanova */,
 			);
 			name = Packages;
 			sourceTree = "<group>";

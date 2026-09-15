@@ -16,7 +16,11 @@ struct SDKRelease {
     let checksum: String
 }
 
-let defaultSDKVersion = "1.0.0-beta.4"
+// 1.0.0-RC.1: fixes all three items in locallm-sdk-feedback.md (session.events tool-call
+// arguments/resultSummary, effort: .off no longer throwing, cancelDownload(_:)) — see that file
+// and docs/vistanova-rc1-fixes.md in the SDK repo for details. Its own release notes describe it
+// as "a VERY early build," so keep an eye out for regressions unrelated to those three fixes.
+let defaultSDKVersion = "1.0.0-RC.1"
 
 let knownCoreReleases: [String: SDKRelease] = [
     "1.0.0-beta.3": SDKRelease(
@@ -26,6 +30,10 @@ let knownCoreReleases: [String: SDKRelease] = [
     "1.0.0-beta.4": SDKRelease(
         url: "https://github.com/ancientcomputing/locallm/releases/download/v1.0.0-beta.4/LocalLMLabSDKCore-1.0.0-beta.4.xcframework.zip",
         checksum: "3ed0e79b6914e6b48b7ae27f3fdda139f71e3d60f603daf54901716c8c972cb3"
+    ),
+    "1.0.0-RC.1": SDKRelease(
+        url: "https://github.com/ancientcomputing/locallm/releases/download/v1.0.0-RC.1/LocalLMLabSDKCore-1.0.0-RC.1.xcframework.zip",
+        checksum: "5c6b8067b3b68143909b1083c40b131d85bc1ea8b7af037d09f1066eb4f6a080"
     ),
 ]
 
@@ -38,6 +46,10 @@ let knownInferenceReleases: [String: SDKRelease] = [
     "1.0.0-beta.4": SDKRelease(
         url: "https://github.com/ancientcomputing/locallm/releases/download/v1.0.0-beta.4/LocalLMLabSDKInference-1.0.0-beta.4.xcframework.zip",
         checksum: "fa8feb19883f9a465a69f39d756f1b41b515c8298c891b06fef5da5b81b2a03c"
+    ),
+    "1.0.0-RC.1": SDKRelease(
+        url: "https://github.com/ancientcomputing/locallm/releases/download/v1.0.0-RC.1/LocalLMLabSDKInference-1.0.0-RC.1.xcframework.zip",
+        checksum: "4f04880f767eae4b673fa7b70022cad2f55fc344137ed51244ccc94081ad4731"
     ),
 ]
 

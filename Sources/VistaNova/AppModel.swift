@@ -79,7 +79,6 @@ final class AppModel {
     var summarizingTurnIDs: Set<UUID> = []
     /// Non-nil while downloading `summaryModel` for the first time — drives a progress sheet.
     var pendingDownload: PendingDownload?
-    private var downloadTask: Task<Bool, Never>?
 
     /// nil until Tavily has been added at least once (drives the blocking setup sheet).
     var tavilyConfigured = false
@@ -308,16 +307,14 @@ final class AppModel {
     }
 
     /// `effort: .off` is what actually suppresses a Qwen3-family model's `<think>…</think>` block
-    /// (confirmed live: it was leaking straight into the Summarize output) — a model that always
-    /// reasons instead (DeepSeek-R1 and its distills) throws `unsupportedCapability` when asked
-    /// for it rather than ignoring it, so fall back to no effort option for those rather than
-    /// failing the whole call over a cosmetic ask.
+    /// (confirmed live: it was leaking straight into the Summarize output). As of SDK 1.0.0-RC.1
+    /// this is a documented no-throw preference — a model that always reasons (DeepSeek-R1 and its
+    /// distills) just keeps reasoning instead of failing the turn, so the try/catch fallback an
+    /// earlier SDK version needed here is gone. (`ModelCapabilities.reasoningToggle` from
+    /// `capabilityProbe(_:)` is available if a caller needs to know ahead of time whether `.off`
+    /// will actually take effect — not needed here since we only use it best-effort.)
     private func makeSessionSuppressingThinking(route: RouteName, tools: [any Tool] = [], instructions: String, includeMCPTools: Bool) throws -> LocalLMLabSession {
-        do {
-            return try lab.makeSession(route: route, tools: tools, instructions: instructions, includeMCPTools: includeMCPTools, options: .init(effort: .off))
-        } catch {
-            return try lab.makeSession(route: route, tools: tools, instructions: instructions, includeMCPTools: includeMCPTools)
-        }
+        try lab.makeSession(route: route, tools: tools, instructions: instructions, includeMCPTools: includeMCPTools, options: .init(effort: .off))
     }
 
     /// Up to 2 full attempts, each running to completion (including cancelling its own event
@@ -348,7 +345,7 @@ final class AppModel {
         var toolWasCalled = false
         let watcher = Task {
             for await event in session.events {
-                if case .toolCallStarted(_, let name) = event, name == "tavily_search" {
+                if case .toolCallStarted(_, let name, _) = event, name == "tavily_search" {
                     toolWasCalled = true
                 }
             }
@@ -498,41 +495,40 @@ final class AppModel {
     }
 
     /// Drives `pendingDownload` (a progress sheet in ChatView) while `mlxProvider.download(_:)`
-    /// runs, inside a real, cancellable `Task` — not just a flag this function checks itself.
-    /// Confirmed live that a flag isn't enough: it only stops US from waiting on the stream, not
-    /// the actual background fetch, which kept running and finished on its own after being
-    /// "cancelled," so the very next Summarize attempt just found the model already installed.
-    /// Real `Task` cancellation is the mechanism a streaming download API like this one is
-    /// generally built to cooperate with — still not a documented guarantee from the SDK (there's
-    /// no explicit cancel-download call), but it's the correct lever to pull, not a flag.
+    /// runs. Earlier SDK versions had no way to actually cancel an in-flight download — we wrapped
+    /// consumption in a `Task` and cancelled that, which stopped OUR wait but not the real
+    /// background transfer (confirmed live: it kept running and finished on its own, so the very
+    /// next Summarize attempt just found the model already installed). As of SDK 1.0.0-RC.1,
+    /// `cancelDownload(_:)` aborts the real transfer — the stream below then throws instead of
+    /// yielding `.completed`, which `isUserCancelled` distinguishes from a genuine failure so we
+    /// don't show an error for a cancel the user asked for.
+    private var isUserCancelledDownload = false
+
     private func downloadSummaryModel() async -> Bool {
         let repoID = summaryModel.rest
+        isUserCancelledDownload = false
         pendingDownload = PendingDownload(repoID: repoID)
-        defer { pendingDownload = nil; downloadTask = nil }
-        let task = Task<Bool, Never> { @MainActor [mlxProvider] in
-            do {
-                for try await event in mlxProvider.download(repoID) {
-                    if Task.isCancelled { return false }
-                    if case .progress(_, _, let fraction) = event {
-                        self.pendingDownload?.fraction = fraction
-                    } else if case .completed = event {
-                        return true
-                    }
+        defer { pendingDownload = nil }
+        do {
+            for try await event in mlxProvider.download(repoID) {
+                if case .progress(_, _, let fraction) = event {
+                    pendingDownload?.fraction = fraction
+                } else if case .completed = event {
+                    return true
                 }
-                return false
-            } catch {
-                if !Task.isCancelled {
-                    self.lastError = await GenerationErrorDescription.describe(error)
-                }
-                return false
             }
+            return false
+        } catch {
+            if !isUserCancelledDownload {
+                lastError = await GenerationErrorDescription.describe(error)
+            }
+            return false
         }
-        downloadTask = task
-        return await task.value
     }
 
     func cancelPendingDownload() {
-        downloadTask?.cancel()
+        isUserCancelledDownload = true
+        mlxProvider.cancelDownload(summaryModel.rest)
     }
 
     /// Belt-and-suspenders for models that always reason (DeepSeek-R1 and its distills):
