@@ -42,8 +42,13 @@ struct ChatView: View {
         .sheet(isPresented: showingTavilySetup) {
             TavilySetupView(model: model)
         }
-        .sheet(item: $model.pendingDownload) { download in
-            DownloadProgressView(download: download, model: model)
+        // isPresented, not .sheet(item:) — confirmed live that item-identity-based presentation
+        // doesn't reliably re-trigger for a second download after the first was cancelled (the
+        // sheet just never reappeared, even though a real second download was running in the
+        // background). A plain Bool transition is the same fix that made the Tavily setup sheet
+        // above reliably dismissable/re-presentable.
+        .sheet(isPresented: Binding(get: { model.pendingDownload != nil }, set: { _ in })) {
+            DownloadProgressView(model: model)
         }
     }
 
@@ -272,14 +277,19 @@ private struct TurnView: View {
 /// just means no summary this time; nothing else in the app is blocked by it.
 @available(macOS 27, *)
 private struct DownloadProgressView: View {
-    let download: PendingDownload
-    let model: AppModel
+    // @Bindable, not a plain `let download: PendingDownload` snapshot — the earlier version
+    // captured the download's value once at presentation time, so the progress bar never
+    // actually animated as AppModel.downloadSummaryModel() updated the real fraction. Reading
+    // `model.pendingDownload` directly here re-renders live as that property changes.
+    @Bindable var model: AppModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Downloading summary model").font(AppFont.title2).bold()
-            Text(download.repoID).font(AppFont.caption).foregroundStyle(.secondary)
-            ProgressView(value: download.fraction)
+            if let download = model.pendingDownload {
+                Text(download.repoID).font(AppFont.caption).foregroundStyle(.secondary)
+                ProgressView(value: download.fraction)
+            }
             HStack {
                 Spacer()
                 Button("Cancel") { model.cancelPendingDownload() }

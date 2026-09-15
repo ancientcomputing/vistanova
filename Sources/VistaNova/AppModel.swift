@@ -471,7 +471,17 @@ final class AppModel {
         // First time the (possibly still-default) summary model is used: it may not be
         // downloaded yet. Show progress, let the user cancel — cancelling just means no summary
         // this time, not an error.
-        if summaryModel.scheme == "mlx", !mlxProvider.installed.contains(where: { $0.id == summaryModel }) {
+        //
+        // `mlxProvider.installed` alone isn't trustworthy here: confirmed live that right after a
+        // cancelled download (only a few MB of metadata on disk, not the real weights),
+        // `installed` already lists the repo as present. Trusting that made this gate skip
+        // `downloadSummaryModel()` entirely on the very next attempt — no `pendingDownload`, so no
+        // sheet — while MLX's own lazy weight-fetch during session/inference setup silently pulled
+        // the real ~2GB in the background with zero progress UI. `incompleteDownloadRepoIDs` is our
+        // own record of "the last attempt for this repo didn't finish," independent of whatever the
+        // SDK's bookkeeping says, so a retry always goes through the tracked path again.
+        if summaryModel.scheme == "mlx",
+           !mlxProvider.installed.contains(where: { $0.id == summaryModel }) || incompleteDownloadRepoIDs.contains(summaryModel.rest) {
             guard await downloadSummaryModel() else { return }
         }
 
@@ -504,6 +514,11 @@ final class AppModel {
     /// don't show an error for a cancel the user asked for.
     private var isUserCancelledDownload = false
 
+    /// Repo IDs whose most recent download attempt didn't reach `.completed` — see the comment at
+    /// the `summarize()` gate above for why this exists alongside (not instead of)
+    /// `mlxProvider.installed`.
+    private var incompleteDownloadRepoIDs: Set<String> = []
+
     private func downloadSummaryModel() async -> Bool {
         let repoID = summaryModel.rest
         isUserCancelledDownload = false
@@ -514,11 +529,14 @@ final class AppModel {
                 if case .progress(_, _, let fraction) = event {
                     pendingDownload?.fraction = fraction
                 } else if case .completed = event {
+                    incompleteDownloadRepoIDs.remove(repoID)
                     return true
                 }
             }
+            incompleteDownloadRepoIDs.insert(repoID)
             return false
         } catch {
+            incompleteDownloadRepoIDs.insert(repoID)
             if !isUserCancelledDownload {
                 lastError = await GenerationErrorDescription.describe(error)
             }
