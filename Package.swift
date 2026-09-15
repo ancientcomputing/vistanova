@@ -16,10 +16,13 @@ struct SDKRelease {
     let checksum: String
 }
 
-// 1.0.0-RC.1: fixes all three items in locallm-sdk-feedback.md (session.events tool-call
-// arguments/resultSummary, effort: .off no longer throwing, cancelDownload(_:)) — see that file
-// and docs/vistanova-rc1-fixes.md in the SDK repo for details. Its own release notes describe it
-// as "a VERY early build," so keep an eye out for regressions unrelated to those three fixes.
+// 1.0.0-RC.1: fixes all four items in locallm-sdk-feedback.md (session.events tool-call
+// arguments/resultSummary, effort: .off no longer throwing, cancelDownload(_:), and — in a later
+// refresh of this same tag — `installed` no longer falsely reporting a cancelled/partial download
+// as installed) — see that file and docs/vistanova-rc1-fixes.md in the SDK repo for details. Same
+// release tag, but the binary (and so the checksum below) was replaced after item 4 landed — if
+// you pulled RC.1 before and hit a checksum mismatch, this is why; re-pull. Its own release notes
+// describe it as "a VERY early build," so keep an eye out for regressions unrelated to these fixes.
 let defaultSDKVersion = "1.0.0-RC.1"
 
 let knownCoreReleases: [String: SDKRelease] = [
@@ -33,7 +36,7 @@ let knownCoreReleases: [String: SDKRelease] = [
     ),
     "1.0.0-RC.1": SDKRelease(
         url: "https://github.com/ancientcomputing/locallm/releases/download/v1.0.0-RC.1/LocalLMLabSDKCore-1.0.0-RC.1.xcframework.zip",
-        checksum: "5c6b8067b3b68143909b1083c40b131d85bc1ea8b7af037d09f1066eb4f6a080"
+        checksum: "deb90fc623d41b1d35a27bae0e77a2a709cdd9083063f36927f927fdef45c550"
     ),
 ]
 
@@ -49,7 +52,7 @@ let knownInferenceReleases: [String: SDKRelease] = [
     ),
     "1.0.0-RC.1": SDKRelease(
         url: "https://github.com/ancientcomputing/locallm/releases/download/v1.0.0-RC.1/LocalLMLabSDKInference-1.0.0-RC.1.xcframework.zip",
-        checksum: "4f04880f767eae4b673fa7b70022cad2f55fc344137ed51244ccc94081ad4731"
+        checksum: "ee466de78509f1bf2d59d78584dccf30b720694402e55c8df3e1d620f29afe48"
     ),
 ]
 
